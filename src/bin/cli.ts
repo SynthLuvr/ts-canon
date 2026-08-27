@@ -12,9 +12,40 @@ commands:
   migrate   convert a consumer repo to ts-canon
 
 options:
-  --fast     lint: skip pnpm audit and jscpd
-  --dry-run  migrate: print the plan without writing
-  --help     show this help`;
+  --fast             lint: skip pnpm audit and jscpd
+  --dry-run          migrate: print the plan without writing
+  --version <spec>   migrate: ts-canon dependency spec (default ^0; an
+                     existing non-registry spec is kept)
+  --help             show this help`;
+
+/**
+ * Takes `--name value` or `--name=value` out of `args`, returning the
+ * value (when given), whether the flag was present without a value, and
+ * the remaining args (the consumed value is removed too, so it cannot be
+ * mistaken for a path).
+ */
+const takeOption = (
+  args: string[],
+  name: string,
+): { value?: string; missingValue: boolean; rest: string[] } => {
+  const rest: string[] = [];
+  let value: string | undefined;
+  let missingValue = false;
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === `--${name}`) {
+      const next = args[i + 1];
+      if (next === undefined || next.startsWith("--")) missingValue = true;
+      else {
+        value = next;
+        i += 1;
+      }
+    } else if (arg.startsWith(`--${name}=`)) {
+      value = arg.slice(`--${name}=`.length);
+    } else rest.push(arg);
+  }
+  return { value, missingValue, rest };
+};
 
 /**
  * Parses `argv` (already stripped of node/tsx) and dispatches to a
@@ -43,8 +74,15 @@ const main = async (argv: string[]): Promise<number> => {
       return runFormat({ paths });
     case "doctor":
       return runDoctor();
-    case "migrate":
-      return runMigrate({ dryRun: flags.includes("--dry-run") });
+    case "migrate": {
+      const { value: version, missingValue } = takeOption(rest, "version");
+      if (missingValue) {
+        console.error("migrate: --version requires a value\n");
+        console.error(USAGE);
+        return 2;
+      }
+      return runMigrate({ dryRun: flags.includes("--dry-run"), version });
+    }
     default:
       console.error(`unknown command: ${command}\n`);
       console.error(USAGE);
