@@ -165,8 +165,8 @@ versions until they trust the range.
 - **Integration:** checked-in fixture “mini repo” containing violations
   of all 11 ast-grep rules plus unformatted markdown; assert `lint`
   fails and `format` fixes to a clean `lint`.
-- **CI matrix:** node 24 × 26, ubuntu × **windows** (mandatory — every
-  stranded fix above was a Windows bug), pandoc 3.1 vs 3.10.
+- **CI matrix:** node 26, ubuntu × **windows** (mandatory — every
+  stranded fix above was a Windows bug), pandoc 3.10.
 - **Dogfood gate:** the package’s own `build && lint && test` runs
   through its own binaries.
 

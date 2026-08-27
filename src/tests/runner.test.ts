@@ -61,8 +61,11 @@ describe("entryKind", () => {
 
   it("sniffs the node shebang of extensionless bins", () => {
     expect(entryKind(resolveBin("@biomejs/biome", "biome"))).toBe("node");
-    // @ast-grep/cli ships the platform binary itself as the bin.
-    expect(entryKind(resolveBin("@ast-grep/cli", "ast-grep"))).toBe("direct");
+    // @ast-grep/cli ships the platform binary itself as the bin on Unix;
+    // on Windows postinstall only writes ast-grep.exe, so the
+    // extensionless bin stays the node shim that spawns it.
+    const expected = process.platform === "win32" ? "node" : "direct";
+    expect(entryKind(resolveBin("@ast-grep/cli", "ast-grep"))).toBe(expected);
   });
 
   it("treats native executables as direct entries", () => {
