@@ -21,8 +21,16 @@ pnpm lint
 `migrate` rewrites the script block, deletes `scripts/pandoc-md.mts`,
 `scripts/peer-deps.mts`, `scripts/oxlint.mts`, and `.ast-grep/rules/`,
 swaps the tool devDependencies for `ts-canon`, and points `biome.json`
-at the shipped preset. Run it with `--dry-run` first to see the plan.
-Reverting the migration PR is the rollback.
+at the shipped preset. Run it with `--dry-run` first to see the plan. An
+already-installed non-registry spec (git, `file:`, `link:`,
+`workspace:`) is preserved — rewriting a git install to `^0` would
+produce an uninstallable `package.json` — and `migrate --version <spec>`
+forces a spec when you want one. Reverting the migration PR is the
+rollback.
+
+Until the package is published to npm, install from git
+(`pnpm add -D github:SynthLuvr/ts-canon#<ref>`); `migrate` keeps that
+spec intact.
 
 ### Consumer surface
 
@@ -48,7 +56,7 @@ Reverting the migration PR is the rollback.
 | `ts-canon lint` | All checks: biome, oxlint (tsgolint), 3 ast-grep rules, pandoc, peer-deps, `pnpm audit --prod`, jscpd |
 | `ts-canon format` | All formatters, in order: convert-to-arrow, strip-braces, biome format, biome check, pandoc |
 | `ts-canon doctor` | Verify pandoc (\>= 3.10), node (\>= 24), pnpm, bundled tools, and the consumer-side typescript |
-| `ts-canon migrate` | Convert a repo to ts-canon (see above) |
+| `ts-canon migrate` | Convert a repo to ts-canon (see above; `--dry-run`, `--version <spec>`) |
 
 Both `lint` and `format` accept path arguments (default `.`), so
 monorepos can scope a run: `ts-canon lint packages/glv`. `lint --fast`
@@ -62,8 +70,12 @@ target has no `pnpm-lock.yaml`.
   and override anything.
 - `presets/tsconfig.base.json` — extend from your `tsconfig.json` via
   `"extends": "ts-canon/presets/tsconfig.base.json"`.
-- `presets/vitest.ts` — `defineConfig` factory (tests in `src/tests`, v8
-  coverage, 80% thresholds).
+- `presets/vitest` — `defineConfig` factory (tests in `src/tests`, v8
+  coverage, 80% thresholds), imported from your `vitest.config.ts` as
+  `ts-canon/presets/vitest`. Shipped compiled (`vitest.mjs` +
+  `vitest.d.mts`): node refuses to type-strip `.ts` under `node_modules`
+  (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`), so a `.ts` factory
+  cannot work from a real install.
 - `presets/sgconfig.yml` — copy to your repo root to point bare
   `ast-grep scan` and editor integrations at the shipped rules.
 - `rules/` — the four ast-grep rule files (11 rule ids).
@@ -95,7 +107,7 @@ This repo is its own first consumer:
 
 ``` bash
 pnpm install
-pnpm build    # tsc --noEmit over src/ and presets/
+pnpm build    # tsc --noEmit over src/
 pnpm run doctor   # environment check (pnpm has a built-in doctor)
 pnpm lint     # ts-canon lint (dogfood)
 pnpm format   # ts-canon format
@@ -104,9 +116,12 @@ pnpm test     # vitest with coverage thresholds
 
 The launcher is `bin/ts-canon.mjs` (plain ESM JS): it resolves the
 bundled tsx by absolute path and runs `src/bin/main.ts` under the
-current node. The package ships TypeScript sources; publishing is
-tag-driven (npm publish plus a `dist` branch push for git-tarball
-consumption) — see `.github/workflows/release.yml`.
+current node. The package ships TypeScript sources (the vitest preset
+ships compiled — see above); publishing is tag-driven (npm publish plus
+a `dist` branch push for git-tarball consumption) — see
+`.github/workflows/release.yml`. The repo’s own `vitest.config.ts`
+imports `ts-canon/presets/vitest`, so every `pnpm test` exercises the
+shipped compiled preset.
 
 Design rationale, spike results, and the migration wave plan live in
 `docs/design.md` and `docs/spikes.md`.

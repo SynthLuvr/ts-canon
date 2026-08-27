@@ -76,7 +76,9 @@ cannot retroactively fix live repos. A shared package collapses this to
         lib/runner.ts             # sequential spawn-by-absolute-path runner
         presets/biome.json        # the canonical 144-line biome config
         presets/tsconfig.base.json
-        presets/vitest.ts         # defineConfig factory
+        presets/vitest.mjs        # defineConfig factory, shipped compiled
+        presets/vitest.d.mts      #   (+ types): node cannot type-strip .ts
+                                  #   under node_modules
         presets/sgconfig.yml      # ruleDirs -> package rules/
         rules/                    # the 4 ast-grep files (11 rule ids)
       src/tests/                  # unit + fixture-repo integration tests
@@ -145,7 +147,9 @@ workspace links cannot loop discovery (the type-a-bin lesson).
 Ordered by verified version delta (lowest risk first). Each wave is one
 PR per repo: `ts-canon migrate` rewrites the script block, deletes
 `scripts/*.mts` copies and `.ast-grep/rules/`, and swaps the
-devDependencies; CI must pass on ubuntu **and** windows before merge.
+devDependencies (preserving an existing non-registry `ts-canon` spec —
+git, `file:`, `link:`, `workspace:`); CI must pass on ubuntu **and**
+windows before merge.
 
 | Wave | Repos (verified state) | Notes |
 |----|----|----|
