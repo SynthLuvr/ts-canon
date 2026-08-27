@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 /**
  * Spawns pnpm without touching PATH: `npm_execpath` is pnpm's real entry
@@ -49,6 +51,47 @@ const pnpmVersion = (): string | undefined => {
 };
 
 /**
+ * `packageManager` field of the manifest at `dir`: `undefined` when the
+ * manifest is absent, unreadable, or declares nothing.
+ */
+const manifestPackageManager = (dir: string): string | undefined => {
+  try {
+    const parsed = JSON.parse(
+      readFileSync(join(dir, "package.json"), "utf8"),
+    ) as { packageManager?: string };
+    return parsed.packageManager;
+  } catch {
+    return undefined;
+  }
+};
+
+/** pnpm version from a `packageManager` value, corepack hash dropped. */
+const pnpmFromField = (field: string): string | undefined => {
+  const match = /^pnpm@([^\s+]+)/.exec(field);
+  return match === null ? undefined : match[1];
+};
+
+/**
+ * pnpm version from the nearest `packageManager` field at or above
+ * `startDir`, walking past manifests without the field (monorepo
+ * subpackages) and stopping at the first declaration — even when it
+ * names another tool. Advisory fallback for `pnpm exec`, which (unlike
+ * `pnpm run`) does not set `npm_execpath`.
+ */
+const pnpmVersionFromPackageManager = (
+  startDir: string,
+): string | undefined => {
+  let dir = resolve(startDir);
+  for (;;) {
+    const field = manifestPackageManager(dir);
+    if (field !== undefined) return pnpmFromField(field);
+    const parent = dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+};
+
+/**
  * Fails when the installed tree has unmet or missing peer dependencies.
  * Uses `pnpm peers check` (which inspects the lockfile directly) rather than
  * `install --strict-peer-dependencies`: a frozen lockfile is not re-resolved
@@ -69,4 +112,9 @@ const pnpmPeersCheck = (root: string): number => {
   return 1;
 };
 
-export { pnpmCommand, pnpmPeersCheck, pnpmVersion };
+export {
+  pnpmCommand,
+  pnpmPeersCheck,
+  pnpmVersion,
+  pnpmVersionFromPackageManager,
+};

@@ -12,9 +12,31 @@ commands:
   migrate   convert a consumer repo to ts-canon
 
 options:
-  --fast     lint: skip pnpm audit and jscpd
-  --dry-run  migrate: print the plan without writing
-  --help     show this help`;
+  --fast             lint: skip pnpm audit and jscpd
+  --dry-run          migrate: print the plan without writing
+  --version <spec>   migrate: ts-canon dependency spec (default ^0; an
+                     existing non-registry spec is kept)
+  --help             show this help`;
+
+/**
+ * Reads `--name value` or `--name=value` from `args`. A bare `--name` —
+ * missing or swallowed by the next `--flag` — is flagged `missingValue`.
+ */
+const takeOption = (
+  args: string[],
+  name: string,
+): { value?: string; missingValue?: boolean } => {
+  const flag = `--${name}`;
+  const index = args.indexOf(flag);
+  if (index !== -1) {
+    const next = args[index + 1];
+    return next === undefined || next.startsWith("--")
+      ? { missingValue: true }
+      : { value: next };
+  }
+  const inline = args.find((arg) => arg.startsWith(`${flag}=`));
+  return inline === undefined ? {} : { value: inline.slice(flag.length + 1) };
+};
 
 /**
  * Parses `argv` (already stripped of node/tsx) and dispatches to a
@@ -43,8 +65,15 @@ const main = async (argv: string[]): Promise<number> => {
       return runFormat({ paths });
     case "doctor":
       return runDoctor();
-    case "migrate":
-      return runMigrate({ dryRun: flags.includes("--dry-run") });
+    case "migrate": {
+      const { value: version, missingValue } = takeOption(rest, "version");
+      if (missingValue) {
+        console.error("migrate: --version requires a value\n");
+        console.error(USAGE);
+        return 2;
+      }
+      return runMigrate({ dryRun: flags.includes("--dry-run"), version });
+    }
     default:
       console.error(`unknown command: ${command}\n`);
       console.error(USAGE);

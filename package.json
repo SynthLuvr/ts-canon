@@ -14,6 +14,10 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./presets/vitest": {
+      "types": "./presets/vitest.d.mts",
+      "default": "./presets/vitest.mjs"
+    },
     "./presets/*": "./presets/*",
     "./rules/*": "./rules/*",
     "./tsconfig.base.json": "./presets/tsconfig.base.json"

@@ -5,9 +5,7 @@ import { defineConfig } from "vitest/config";
  * `src` with an 80% threshold. Takes an optional override object merged
  * into the `test` section for repo-specific needs.
  */
-const vitestPreset = (
-  overrides: Record<string, unknown> = {},
-): ReturnType<typeof defineConfig> =>
+const vitestPreset = (overrides = {}) =>
   defineConfig({
     test: {
       include: ["src/tests/**/*.test.ts"],

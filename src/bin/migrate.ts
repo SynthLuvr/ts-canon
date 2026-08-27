@@ -47,6 +47,26 @@ const LEGACY_SCRIPT_FILES = [
 
 const BIOME_EXTENDS = "ts-canon/presets/biome.preset.json";
 
+/**
+ * Dependency specs that point outside the npm registry: git (`github:`,
+ * `git+…`, `user/repo#ref`), local (`file:`, `link:`, `portal:`), and
+ * workspaces (`workspace:`). While ts-canon is installed from one of
+ * these, rewriting the spec to a registry range would produce an
+ * uninstallable `package.json`.
+ */
+const NON_REGISTRY_PREFIXES = [
+  "git+",
+  "git@",
+  "github:",
+  "gitlab:",
+  "bitbucket:",
+  "gist:",
+  "file:",
+  "link:",
+  "portal:",
+  "workspace:",
+];
+
 const NEXT_STEPS = `
 Next: pnpm install && pnpm lint
 Consider extending tsconfig.json from ts-canon/presets/tsconfig.base.json
@@ -58,6 +78,9 @@ type PackageJson = {
 };
 
 type MigrateOptions = { root?: string; version?: string; dryRun?: boolean };
+
+/** How the ts-canon devDependency spec was chosen for a migration. */
+type DevDepResult = { removed: string[]; spec: string; preserved: boolean };
 
 const readJson = <T>(file: string): T =>
   JSON.parse(readFileSync(file, "utf8")) as T;
@@ -78,18 +101,33 @@ const rewriteScripts = (pkg: PackageJson): string[] => {
   return removed;
 };
 
-/** Swaps the replaced tool devDependencies for ts-canon, sorted by name. */
-const rewriteDevDeps = (pkg: PackageJson, version?: string): string[] => {
+/** True when `spec` is a registry range or dist-tag, safe to overwrite. */
+const isRegistrySpec = (spec: string): boolean =>
+  !spec.includes("/") &&
+  !NON_REGISTRY_PREFIXES.some((prefix) => spec.startsWith(prefix));
+
+/**
+ * Swaps the replaced tool devDependencies for ts-canon, sorted by name.
+ * An existing non-registry spec (git, `file:`, `link:`, `workspace:`) is
+ * preserved unless `version` is given.
+ */
+const rewriteDevDeps = (pkg: PackageJson, version?: string): DevDepResult => {
   const devDeps: Record<string, string> = { ...pkg.devDependencies };
   const removed = Object.keys(devDeps).filter(
     (name) => TOOL_DEV_DEPS.has(name) || name.startsWith("@ast-grep/cli-"),
   );
   for (const name of removed) delete devDeps[name];
-  devDeps["ts-canon"] = version ?? "^0";
+  const existing = devDeps["ts-canon"];
+  const preserved =
+    existing !== undefined &&
+    !isRegistrySpec(existing) &&
+    version === undefined;
+  const spec = preserved ? existing : (version ?? "^0");
+  devDeps["ts-canon"] = spec;
   pkg.devDependencies = Object.fromEntries(
     Object.entries(devDeps).sort(([a], [b]) => a.localeCompare(b)),
   );
-  return removed;
+  return { removed, spec, preserved };
 };
 
 /** Rewrites `biome.json` to extend the shipped preset, preserving overrides. */
@@ -142,11 +180,16 @@ const deletePortedFiles = (root: string): void => {
 const printDryRunPlan = (
   root: string,
   removedScripts: string[],
-  removedDeps: string[],
+  devDeps: DevDepResult,
 ): void => {
   console.log("[migrate] dry run — no changes written");
   console.log(`[migrate] would remove scripts: ${removedScripts.join(", ")}`);
-  console.log(`[migrate] would remove devDeps: ${removedDeps.join(", ")}`);
+  console.log(`[migrate] would remove devDeps: ${devDeps.removed.join(", ")}`);
+  console.log(
+    devDeps.preserved
+      ? `[migrate] would keep ts-canon ${devDeps.spec} (non-registry spec)`
+      : `[migrate] would set ts-canon to ${devDeps.spec}`,
+  );
   for (const rel of LEGACY_SCRIPT_FILES) {
     const file = join(root, rel);
     if (existsSync(file)) console.log(`[migrate] would delete ${file}`);
@@ -158,9 +201,10 @@ const printDryRunPlan = (
 /**
  * Converts a consumer repo to ts-canon: rewrites the `lint`/`format`
  * script block, deletes the ported `scripts/*.mts` copies and
- * `.ast-grep/rules/`, swaps the tool devDependencies for `ts-canon`, and
- * points `biome.json` at the shipped preset. Reviewable as one PR;
- * reverting that PR is the rollback.
+ * `.ast-grep/rules/`, swaps the tool devDependencies for `ts-canon`
+ * (preserving an existing non-registry spec), and points `biome.json`
+ * at the shipped preset. Reviewable as one PR; reverting that PR is
+ * the rollback.
  */
 const runMigrate = (options: MigrateOptions = {}): number => {
   const root = resolve(options.root ?? ".");
@@ -172,16 +216,21 @@ const runMigrate = (options: MigrateOptions = {}): number => {
 
   const pkg = readJson<PackageJson>(pkgPath);
   const removedScripts = rewriteScripts(pkg);
-  const removedDeps = rewriteDevDeps(pkg, options.version);
+  const devDeps = rewriteDevDeps(pkg, options.version);
 
   if (options.dryRun === true) {
-    printDryRunPlan(root, removedScripts, removedDeps);
+    printDryRunPlan(root, removedScripts, devDeps);
     return 0;
   }
 
   writeJson(pkgPath, pkg);
   console.log(
-    `[migrate] rewrote package.json (removed ${removedScripts.length} scripts, ${removedDeps.length} devDeps)`,
+    `[migrate] rewrote package.json (removed ${removedScripts.length} scripts, ${devDeps.removed.length} devDeps)`,
+  );
+  console.log(
+    devDeps.preserved
+      ? `[migrate] kept ts-canon ${devDeps.spec} (non-registry spec)`
+      : `[migrate] ts-canon devDependency: ${devDeps.spec}`,
   );
   deletePortedFiles(root);
   ensureBiomeExtends(root, false);
@@ -189,4 +238,4 @@ const runMigrate = (options: MigrateOptions = {}): number => {
   return 0;
 };
 
-export { runMigrate };
+export { isRegistrySpec, runMigrate };

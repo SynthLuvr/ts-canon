@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { PANDOC_MISSING, pandocVersion } from "../lib/pandoc-md";
-import { pnpmVersion } from "../lib/peer-deps";
+import { pnpmVersion, pnpmVersionFromPackageManager } from "../lib/peer-deps";
 import { entryKind, resolveBin } from "../lib/runner";
 
 const MIN_NODE: [number, number, number] = [24, 0, 0];
@@ -59,12 +59,21 @@ const checkNode = (): boolean => {
   return ok;
 };
 
-/** pnpm is advisory: scripts still work when run outside a pnpm process. */
+/**
+ * pnpm is advisory: scripts still work outside a pnpm process. When pnpm
+ * cannot be spawned (`pnpm exec` does not set `npm_execpath`), fall back
+ * to the repo's `packageManager` field.
+ */
 const reportPnpm = (): void => {
   const pnpm = pnpmVersion();
-  if (pnpm === undefined)
-    console.log("warn pnpm — not detected (is ts-canon run under pnpm?)");
-  else console.log(`ok   pnpm — ${pnpm}`);
+  if (pnpm !== undefined) {
+    console.log(`ok   pnpm — ${pnpm}`);
+    return;
+  }
+  const declared = pnpmVersionFromPackageManager(process.cwd());
+  if (declared !== undefined)
+    console.log(`ok   pnpm — ${declared} (packageManager)`);
+  else console.log("warn pnpm — not detected (is ts-canon run under pnpm?)");
 };
 
 const checkPandoc = (): boolean => {

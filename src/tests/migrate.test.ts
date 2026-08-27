@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { runMigrate } from "../bin/migrate";
+import { isRegistrySpec, runMigrate } from "../bin/migrate";
 import { withTempDir, writeFixture } from "./helpers";
 
 const LEGACY_PACKAGE_JSON = {
@@ -121,6 +121,142 @@ describe("runMigrate", () => {
     }
   });
 
+  it("preserves an existing non-registry ts-canon spec", () => {
+    const [root, cleanup] = withTempDir();
+    try {
+      const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      try {
+        writeFixture(
+          root,
+          "package.json",
+          JSON.stringify({
+            name: "x",
+            scripts: {},
+            devDependencies: {
+              "ts-canon": "github:SynthLuvr/ts-canon#ef074c9",
+              oxlint: "^1.0.0",
+            },
+          }),
+        );
+        expect(runMigrate({ root })).toBe(0);
+        expect(log).toHaveBeenCalledWith(
+          expect.stringContaining(
+            "kept ts-canon github:SynthLuvr/ts-canon#ef074c9",
+          ),
+        );
+      } finally {
+        log.mockRestore();
+      }
+
+      const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+      expect(pkg.devDependencies["ts-canon"]).toBe(
+        "github:SynthLuvr/ts-canon#ef074c9",
+      );
+      expect(pkg.devDependencies.oxlint).toBeUndefined();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it.each([
+    ["git+ssh://git@github.com/SynthLuvr/ts-canon.git"],
+    ["SynthLuvr/ts-canon#ef074c9"],
+    ["link:."],
+    ["file:../ts-canon"],
+    ["workspace:^"],
+  ])("preserves the non-registry spec %s", (spec) => {
+    const [root, cleanup] = withTempDir();
+    try {
+      writeFixture(
+        root,
+        "package.json",
+        JSON.stringify({
+          name: "x",
+          scripts: {},
+          devDependencies: { "ts-canon": spec },
+        }),
+      );
+      expect(runMigrate({ root })).toBe(0);
+      const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+      expect(pkg.devDependencies["ts-canon"]).toBe(spec);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("replaces an existing registry range with ^0", () => {
+    const [root, cleanup] = withTempDir();
+    try {
+      writeFixture(
+        root,
+        "package.json",
+        JSON.stringify({
+          name: "x",
+          scripts: {},
+          devDependencies: { "ts-canon": "^0.0.3" },
+        }),
+      );
+      expect(runMigrate({ root })).toBe(0);
+      const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+      expect(pkg.devDependencies["ts-canon"]).toBe("^0");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("an explicit version overrides even a non-registry spec", () => {
+    const [root, cleanup] = withTempDir();
+    try {
+      writeFixture(
+        root,
+        "package.json",
+        JSON.stringify({
+          name: "x",
+          scripts: {},
+          devDependencies: { "ts-canon": "github:SynthLuvr/ts-canon#ef074c9" },
+        }),
+      );
+      expect(runMigrate({ root, version: "^0.2.0" })).toBe(0);
+      const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+      expect(pkg.devDependencies["ts-canon"]).toBe("^0.2.0");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("dry-run reports a preserved spec without writing", () => {
+    const [root, cleanup] = withTempDir();
+    try {
+      const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      try {
+        writeFixture(
+          root,
+          "package.json",
+          JSON.stringify({
+            name: "x",
+            scripts: { "lint:biome": "biome check ." },
+            devDependencies: {
+              "ts-canon": "github:SynthLuvr/ts-canon#ef074c9",
+            },
+          }),
+        );
+        expect(runMigrate({ root, dryRun: true })).toBe(0);
+        expect(log).toHaveBeenCalledWith(
+          expect.stringContaining(
+            "would keep ts-canon github:SynthLuvr/ts-canon#ef074c9",
+          ),
+        );
+      } finally {
+        log.mockRestore();
+      }
+
+      const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+      expect(pkg.scripts["lint:biome"]).toBe("biome check .");
+    } finally {
+      cleanup();
+    }
+  });
+
   it("prints a plan without writing in dry-run mode", () => {
     const [root, cleanup] = withTempDir();
     try {
@@ -144,5 +280,30 @@ describe("runMigrate", () => {
     } finally {
       cleanup();
     }
+  });
+});
+
+describe("isRegistrySpec", () => {
+  it("accepts registry ranges and dist-tags", () => {
+    expect(isRegistrySpec("^0")).toBe(true);
+    expect(isRegistrySpec("^0.1.0")).toBe(true);
+    expect(isRegistrySpec("0.1.0")).toBe(true);
+    expect(isRegistrySpec(">=1.0.0 <2.0.0")).toBe(true);
+    expect(isRegistrySpec("1.x")).toBe(true);
+    expect(isRegistrySpec("*")).toBe(true);
+    expect(isRegistrySpec("latest")).toBe(true);
+    expect(isRegistrySpec("npm:other-package@^1")).toBe(true);
+  });
+
+  it("rejects git, local, and workspace specs", () => {
+    expect(isRegistrySpec("github:SynthLuvr/ts-canon#ef074c9")).toBe(false);
+    expect(isRegistrySpec("SynthLuvr/ts-canon#ef074c9")).toBe(false);
+    expect(
+      isRegistrySpec("git+ssh://git@github.com/SynthLuvr/ts-canon.git"),
+    ).toBe(false);
+    expect(isRegistrySpec("git@github.com:SynthLuvr/ts-canon.git")).toBe(false);
+    expect(isRegistrySpec("link:.")).toBe(false);
+    expect(isRegistrySpec("file:../ts-canon")).toBe(false);
+    expect(isRegistrySpec("workspace:*")).toBe(false);
   });
 });
