@@ -42,11 +42,14 @@ resolved path — JS entries under the current node (detected by extension
 or node shebang), native executables directly — so no shell, PATH
 lookup, or `.CMD` shim is involved anywhere.
 
-## 5. Public vs. private publish — STILL OPEN
+## 5. Public vs. private publish — RESOLVED
 
-The release workflow (`release.yml`) consumes an `NPM_TOKEN` secret
-either way; flip `--access` / registry when the decision lands. The
-`dist` branch fallback is scripted in the same workflow.
+Public npm via OIDC trusted publishing (the type-a-bin setup):
+`release.yml` is manually dispatched, bumps the version, publishes with
+`npm publish --provenance`, merges the bump PR, and tags the release. No
+`NPM_TOKEN` secret is involved — npm verifies a per-run OIDC token
+against the trusted publisher configured on npmjs.com. The `dist` branch
+fallback is scripted in the same workflow.
 
 ## 6. Fresh-release policy — NOTED
 

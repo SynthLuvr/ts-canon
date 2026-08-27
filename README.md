@@ -28,9 +28,9 @@ produce an uninstallable `package.json` — and `migrate --version <spec>`
 forces a spec when you want one. Reverting the migration PR is the
 rollback.
 
-Until the package is published to npm, install from git
-(`pnpm add -D github:SynthLuvr/ts-canon#<ref>`); `migrate` keeps that
-spec intact.
+ts-canon is published to npm; git installs
+(`pnpm add -D github:SynthLuvr/ts-canon#<ref>`) also work, and `migrate`
+keeps that spec intact.
 
 ### Consumer surface
 

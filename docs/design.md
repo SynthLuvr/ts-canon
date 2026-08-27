@@ -131,14 +131,17 @@ workspace links cannot loop discovery (the type-a-bin lesson).
 
 - Semver, strictly: rule/config tightening is at most minor; tool major
   bumps (biome/oxlint/TS pattern changes) bump the package major.
-- Publish on tag via GitHub Actions: **npm publish** plus a **`dist`
-  branch push** (the git-branch distribution already proven in-org by
+- Publish via a manually dispatched `release.yml` (GitHub Actions):
+  **npm publish** using **OIDC trusted publishing** — no long-lived
+  `NPM_TOKEN` secret; npm verifies a per-run OIDC token against the
+  trusted publisher configured on npmjs.com (the setup proven in-org by
+  type-a-bin). The workflow bumps the version through a short-lived PR,
+  tags the merge, opens the GitHub release, and force-pushes a **`dist`
+  branch** snapshot (the git-tarball fallback proven in-org by
   type-a-bin’s `#dist` consumption). npm is the primary channel because
-  git-tarball deps resist automated semver updates; the `#dist` branch
-  is the fallback.
-- **Open decision:** publish publicly on npm vs. a private registry.
-  Public gives zero-auth CI and Renovate-friendly updates but makes the
-  toolchain world-visible.
+  git-tarball deps resist automated semver updates.
+- **Decision:** publish publicly on npm — zero-auth CI for consumers and
+  Renovate-friendly updates.
 - **Hard rule:** the ts-canon repo lints and formats *with itself* from
   day one (dogfooding is the migration proof).
 
@@ -187,7 +190,8 @@ versions until they trust the range.
     path.
 4.  **Runner semantics** — match npm-run-all’s sequential, fail-fast
     behavior exactly (order and exit codes).
-5.  **Public vs private publish** (§4 decision).
+5.  **Public vs private publish** (§4 decision) — resolved: public npm
+    via OIDC trusted publishing.
 6.  **Fresh-release policy** — the org’s pnpm `minimumReleaseAge`
     supply-chain gate applies to the package’s own deps; bump tools only
     past the age cutoff (or accept a documented exclusion) to keep
@@ -202,7 +206,7 @@ versions until they trust the range.
 | 3 | CLI + presets | `lint`/`format`/`doctor` subcommands; presets wired via spike winners |
 | 4 | Self-host | switch the package’s own scripts to `ts-canon lint`/`format` |
 | 5 | Pilot migration | bin-test end-to-end incl. Windows CI |
-| 6 | Release v0.1.0 | tag → npm publish + `dist` branch; changelog |
+| 6 | Release v0.1.0 | manual dispatch of `release.yml` → npm publish (OIDC) + `dist` branch; changelog |
 | 7 | Waves 1–4 | one PR per repo; track in a checklist issue |
 | 8 | Ongoing | single “update toolchain” PR across repos per tool bump (Renovate or workflow) |
 
