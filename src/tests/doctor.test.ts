@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { isAtLeast, parseVersion, runDoctor } from "../bin/doctor";
+import { isAtLeast, parseVersion } from "../bin/doctor";
 
 describe("parseVersion", () => {
   it("parses release versions", () => {
@@ -26,16 +26,23 @@ describe("isAtLeast", () => {
 });
 
 describe("runDoctor", () => {
-  it("passes on a healthy environment", () => {
+  it("passes on a healthy environment", async () => {
+    vi.resetModules();
+    vi.doMock("../lib/pandoc-md", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("../lib/pandoc-md")>();
+      return { ...actual, pandocVersion: () => "3.10.2" };
+    });
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const error = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
     try {
-      expect(runDoctor()).toBe(0);
+      const { runDoctor: mocked } = await import("../bin/doctor");
+      expect(mocked()).toBe(0);
     } finally {
       log.mockRestore();
       error.mockRestore();
+      vi.doUnmock("../lib/pandoc-md");
     }
   });
 
