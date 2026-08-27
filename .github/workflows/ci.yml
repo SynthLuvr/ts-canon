@@ -30,8 +30,8 @@ jobs:
       - name: Install pandoc on Linux (pinned for Markdown lint/format)
         if: runner.os == 'Linux'
         run: |
-          wget -q https://github.com/jgm/pandoc/releases/download/3.10.2/pandoc-3.10.2-1.amd64.deb
-          sudo dpkg -i pandoc-3.10.2-1.amd64.deb
+          wget -q https://github.com/jgm/pandoc/releases/download/3.10.2/pandoc-3.10.2-1-amd64.deb
+          sudo dpkg -i pandoc-3.10.2-1-amd64.deb
           pandoc --version | head -1
 
       - name: Install pandoc on Windows (pinned for Markdown lint/format)
