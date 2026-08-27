@@ -2,6 +2,28 @@
   "name": "ts-canon",
   "version": "0.1.0",
   "description": "Shared TypeScript toolchain: one dependency for lint, format, doctor, and migrate, with biome/tsconfig/vitest presets and ast-grep rules",
+  "keywords": [
+    "typescript",
+    "toolchain",
+    "lint",
+    "format",
+    "biome",
+    "oxlint",
+    "ast-grep",
+    "vitest",
+    "preset",
+    "shared-config",
+    "codemod"
+  ],
+  "author": "SynthLuvr (https://github.com/SynthLuvr)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SynthLuvr/ts-canon.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SynthLuvr/ts-canon/issues"
+  },
+  "homepage": "https://github.com/SynthLuvr/ts-canon#readme",
   "type": "module",
   "license": "MIT",
   "private": false,
@@ -22,7 +44,7 @@
     "./rules/*": "./rules/*",
     "./tsconfig.base.json": "./presets/tsconfig.base.json"
   },
-  "files": ["bin", "src", "presets", "rules"],
+  "files": ["bin", "src", "presets", "rules", "!src/tests"],
   "scripts": {
     "build": "tsc",
     "doctor": "ts-canon doctor",
