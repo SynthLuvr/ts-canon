@@ -42,7 +42,7 @@ const toolVersion = (file: string): string | undefined => {
   return result.stdout.split("\n", 1)[0]?.trim();
 };
 
-/** Tools bundled as direct dependencies of ts-toolkit. */
+/** Tools bundled as direct dependencies of ts-canon. */
 const BUNDLED_TOOLS: [string, string][] = [
   ["@ast-grep/cli", "ast-grep"],
   ["@biomejs/biome", "biome"],
@@ -63,7 +63,7 @@ const checkNode = (): boolean => {
 const reportPnpm = (): void => {
   const pnpm = pnpmVersion();
   if (pnpm === undefined)
-    console.log("warn pnpm — not detected (is ts-toolkit run under pnpm?)");
+    console.log("warn pnpm — not detected (is ts-canon run under pnpm?)");
   else console.log(`ok   pnpm — ${pnpm}`);
 };
 

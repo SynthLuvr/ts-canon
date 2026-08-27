@@ -1,4 +1,4 @@
-# ts-toolkit — Shared TypeScript Toolchain Package
+# ts-canon — Shared TypeScript Toolchain Package
 
 ## 1. Problem
 
@@ -59,11 +59,11 @@ cannot retroactively fix live repos. A shared package collapses this to
 
 ## 3. Package design
 
-**Name:** `ts-toolkit` (unscoped; add an org scope at publish time).
-**Single bin:** `ts-toolkit` with subcommands `lint`, `format`,
-`doctor`, `migrate`.
+**Name:** `ts-canon` (unscoped; add an org scope at publish time).
+**Single bin:** `ts-canon` with subcommands `lint`, `format`, `doctor`,
+`migrate`.
 
-    ts-toolkit/                     # new repo, scaffolded FROM typescript-template
+    ts-canon/                     # new repo, scaffolded FROM typescript-template
       src/
         bin/cli.ts                # arg parsing -> subcommands
         bin/lint.ts               # orchestrates all checks; non-zero on failure
@@ -87,25 +87,25 @@ cannot retroactively fix live repos. A shared package collapses this to
 // package.json
 "scripts": {
   "build": "tsc",
-  "lint": "ts-toolkit lint",
-  "format": "ts-toolkit format",
+  "lint": "ts-canon lint",
+  "format": "ts-canon format",
   "test": "vitest run --coverage"
 },
 "devDependencies": {
-  "ts-toolkit": "^0",          // + typescript, vitest, @vitest/coverage-v8,
+  "ts-canon": "^0",          // + typescript, vitest, @vitest/coverage-v8,
                                 //   @types/node, and repo-specific deps
 }
 ```
 
 **Dependency strategy — bundle, don’t peer.** biome, oxlint,
 oxlint-tsgolint, `@ast-grep/cli`, convert-to-arrow, jscpd, tsx, and
-npm-run-all2 become direct dependencies of `ts-toolkit`. Peer-deps would
+npm-run-all2 become direct dependencies of `ts-canon`. Peer-deps would
 reintroduce the drift this package exists to kill. Two deliberate
 exceptions:
 
 - `typescript` stays consumer-side (`tsc` runs there; editors need it
-  local). `ts-toolkit doctor` reports version spread; TS bumps remain
-  the one coordinated update.
+  local). `ts-canon doctor` reports version spread; TS bumps remain the
+  one coordinated update.
 - `pandoc` stays a system dependency (not npm-installable). `doctor`
   verifies `>= 3.10` with the existing error message; `lint`/`format`
   fail fast with the same guidance.
@@ -117,9 +117,9 @@ each tool’s entry point from `node_modules` (the technique proven in
 for `npm-run-all2` and the `scriptShell: bash` workspace workaround.
 
 **Escape hatches.** Repos keep a local `biome.json` that `extends` the
-preset and overrides; `ts-toolkit lint --fast` skips `pnpm audit` +
-jscpd; extra repo-specific checks chain after `ts-toolkit lint` in their
-own scripts.
+preset and overrides; `ts-canon lint --fast` skips `pnpm audit` + jscpd;
+extra repo-specific checks chain after `ts-canon lint` in their own
+scripts.
 
 **Monorepos.** The reconciled markdown walk is symlink-safe, so
 workspace links cannot loop discovery (the type-a-bin lesson).
@@ -137,13 +137,13 @@ workspace links cannot loop discovery (the type-a-bin lesson).
 - **Open decision:** publish publicly on npm vs. a private registry.
   Public gives zero-auth CI and Renovate-friendly updates but makes the
   toolchain world-visible.
-- **Hard rule:** the ts-toolkit repo lints and formats *with itself*
-  from day one (dogfooding is the migration proof).
+- **Hard rule:** the ts-canon repo lints and formats *with itself* from
+  day one (dogfooding is the migration proof).
 
 ## 5. Migration waves
 
 Ordered by verified version delta (lowest risk first). Each wave is one
-PR per repo: `ts-toolkit migrate` rewrites the script block, deletes
+PR per repo: `ts-canon migrate` rewrites the script block, deletes
 `scripts/*.mts` copies and `.ast-grep/rules/`, and swaps the
 devDependencies; CI must pass on ubuntu **and** windows before merge.
 
@@ -174,7 +174,7 @@ versions until they trust the range.
 
 1.  **Biome `extends` from `node_modules`** — confirm package-path
     resolution in Biome 2.5+ (relative paths work; package resolution
-    needs a spike). Fallback: `ts-toolkit` passes `--config-path` to the
+    needs a spike). Fallback: `ts-canon` passes `--config-path` to the
     bundled preset.
 2.  **tsconfig `extends`** via the package `exports` map — must list
     `./tsconfig.base.json`, `./presets/*`, and `./rules/*`.
@@ -196,7 +196,7 @@ versions until they trust the range.
 | 1 | Spikes (§7 items 1–4) | half-day timebox each; record results in this file |
 | 2 | Bootstrap repo | scaffold from typescript-template@83b914e; port the three scripts as `lib/` modules unchanged |
 | 3 | CLI + presets | `lint`/`format`/`doctor` subcommands; presets wired via spike winners |
-| 4 | Self-host | switch the package’s own scripts to `ts-toolkit lint`/`format` |
+| 4 | Self-host | switch the package’s own scripts to `ts-canon lint`/`format` |
 | 5 | Pilot migration | bin-test end-to-end incl. Windows CI |
 | 6 | Release v0.1.0 | tag → npm publish + `dist` branch; changelog |
 | 7 | Waves 1–4 | one PR per repo; track in a checklist issue |

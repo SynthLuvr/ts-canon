@@ -39,7 +39,7 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.11
         version: 4.1.11(vitest@4.1.11)
-      ts-toolkit:
+      ts-canon:
         specifier: link:.
         version: 'link:'
       typescript:

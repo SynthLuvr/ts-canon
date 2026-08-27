@@ -13,7 +13,7 @@ import {
 } from "../lib/runner";
 
 /**
- * The ast-grep rules enforced by `ts-toolkit lint`, in the order the
+ * The ast-grep rules enforced by `ts-canon lint`, in the order the
  * canonical toolchain ran them. File name and rule id match.
  */
 const LINT_RULES = [

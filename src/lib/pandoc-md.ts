@@ -91,7 +91,7 @@ const runPandoc = (root: string, mode: PandocMode): number => {
 
   console.error("Markdown files are not pandoc-formatted:");
   for (const file of drifted) console.error(`  ${file}`);
-  console.error("\nFix with: ts-toolkit format");
+  console.error("\nFix with: ts-canon format");
   return 1;
 };
 

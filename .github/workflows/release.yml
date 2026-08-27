@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Dogfood gate (build && lint && test through ts-toolkit)
+      - name: Dogfood gate (build && lint && test through ts-canon)
         run: pnpm build && pnpm lint && pnpm test
   publish:
     needs: verify

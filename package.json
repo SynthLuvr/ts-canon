@@ -1,5 +1,5 @@
 {
-  "name": "ts-toolkit",
+  "name": "ts-canon",
   "version": "0.1.0",
   "description": "Shared TypeScript toolchain: one dependency for lint, format, doctor, and migrate, with biome/tsconfig/vitest presets and ast-grep rules",
   "type": "module",
@@ -10,7 +10,7 @@
     "node": ">=24"
   },
   "bin": {
-    "ts-toolkit": "bin/ts-toolkit.mjs"
+    "ts-canon": "bin/ts-canon.mjs"
   },
   "exports": {
     ".": "./src/index.ts",
@@ -21,9 +21,9 @@
   "files": ["bin", "src", "presets", "rules"],
   "scripts": {
     "build": "tsc",
-    "doctor": "ts-toolkit doctor",
-    "format": "ts-toolkit format",
-    "lint": "ts-toolkit lint",
+    "doctor": "ts-canon doctor",
+    "format": "ts-canon format",
+    "lint": "ts-canon lint",
     "test": "vitest run --coverage",
     "test:watch": "vitest"
   },
@@ -40,7 +40,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^4.1.11",
-    "ts-toolkit": "link:.",
+    "ts-canon": "link:.",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   }

@@ -8,17 +8,17 @@ import { packageRoot } from "../lib/runner";
 const runLauncher = (args: string[]): ReturnType<typeof spawnSync> =>
   spawnSync(
     process.execPath,
-    [join(packageRoot(), "bin", "ts-toolkit.mjs"), ...args],
+    [join(packageRoot(), "bin", "ts-canon.mjs"), ...args],
     {
       encoding: "utf8",
     },
   );
 
-describe("bin/ts-toolkit.mjs", () => {
+describe("bin/ts-canon.mjs", () => {
   it("prints help and exits 0", () => {
     const result = runLauncher(["--help"]);
     expect(result.status).toBe(0);
-    expect(result.stdout ?? "").toContain("usage: ts-toolkit");
+    expect(result.stdout ?? "").toContain("usage: ts-canon");
   }, 120_000);
 
   it("exits 2 for an unknown command", () => {

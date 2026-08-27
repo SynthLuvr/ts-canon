@@ -94,7 +94,7 @@ describe("runCommand", () => {
   }, 30_000);
 
   it("resolves to 1 when the entry cannot be spawned", async () => {
-    expect(await runCommand("/nonexistent/ts-toolkit-tool", [])).toBe(1);
+    expect(await runCommand("/nonexistent/ts-canon-tool", [])).toBe(1);
   }, 30_000);
 });
 
@@ -138,6 +138,6 @@ describe("packageRoot", () => {
     const root = packageRoot();
     expect(existsSync(join(root, "presets", "biome.preset.json"))).toBe(true);
     expect(existsSync(join(root, "rules", "strip-braces.yml"))).toBe(true);
-    expect(existsSync(join(root, "bin", "ts-toolkit.mjs"))).toBe(true);
+    expect(existsSync(join(root, "bin", "ts-canon.mjs"))).toBe(true);
   });
 });

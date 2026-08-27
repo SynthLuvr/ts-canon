@@ -48,7 +48,7 @@ jobs:
           Add-Content $env:GITHUB_PATH $dir
           & "$dir\pandoc.exe" --version | Select-Object -First 1
 
-      - name: Lint (dogfood: ts-toolkit lints itself)
+      - name: Lint (dogfood: ts-canon lints itself)
         run: pnpm lint
 
       - name: Test

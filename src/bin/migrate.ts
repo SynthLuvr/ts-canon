@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-/** devDependencies ts-toolkit replaces (plus any `@ast-grep/cli-*` platform pin). */
+/** devDependencies ts-canon replaces (plus any `@ast-grep/cli-*` platform pin). */
 const TOOL_DEV_DEPS = new Set([
   "@ast-grep/cli",
   "@biomejs/biome",
@@ -20,7 +20,7 @@ const TOOL_DEV_DEPS = new Set([
   "tsx",
 ]);
 
-/** Per-step scripts collapsed into `ts-toolkit lint` / `ts-toolkit format`. */
+/** Per-step scripts collapsed into `ts-canon lint` / `ts-canon format`. */
 const LEGACY_STEP_SCRIPTS = [
   "format:arrows",
   "format:biome",
@@ -45,11 +45,11 @@ const LEGACY_SCRIPT_FILES = [
   "scripts/oxlint.mts",
 ];
 
-const BIOME_EXTENDS = "ts-toolkit/presets/biome.preset.json";
+const BIOME_EXTENDS = "ts-canon/presets/biome.preset.json";
 
 const NEXT_STEPS = `
 Next: pnpm install && pnpm lint
-Consider extending tsconfig.json from ts-toolkit/presets/tsconfig.base.json
+Consider extending tsconfig.json from ts-canon/presets/tsconfig.base.json
 and keeping a local .oxlintrc.json for type-aware rules.`;
 
 type PackageJson = {
@@ -67,25 +67,25 @@ const writeJson = (file: string, value: unknown): void => {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 };
 
-/** Collapses the legacy per-step scripts into the ts-toolkit pair, in place. */
+/** Collapses the legacy per-step scripts into the ts-canon pair, in place. */
 const rewriteScripts = (pkg: PackageJson): string[] => {
   const scripts: Record<string, string> = { ...pkg.scripts };
   const removed = LEGACY_STEP_SCRIPTS.filter((key) => key in scripts);
   for (const key of removed) delete scripts[key];
-  scripts.lint = "ts-toolkit lint";
-  scripts.format = "ts-toolkit format";
+  scripts.lint = "ts-canon lint";
+  scripts.format = "ts-canon format";
   pkg.scripts = scripts;
   return removed;
 };
 
-/** Swaps the replaced tool devDependencies for ts-toolkit, sorted by name. */
+/** Swaps the replaced tool devDependencies for ts-canon, sorted by name. */
 const rewriteDevDeps = (pkg: PackageJson, version?: string): string[] => {
   const devDeps: Record<string, string> = { ...pkg.devDependencies };
   const removed = Object.keys(devDeps).filter(
     (name) => TOOL_DEV_DEPS.has(name) || name.startsWith("@ast-grep/cli-"),
   );
   for (const name of removed) delete devDeps[name];
-  devDeps["ts-toolkit"] = version ?? "^0";
+  devDeps["ts-canon"] = version ?? "^0";
   pkg.devDependencies = Object.fromEntries(
     Object.entries(devDeps).sort(([a], [b]) => a.localeCompare(b)),
   );
@@ -156,9 +156,9 @@ const printDryRunPlan = (
 };
 
 /**
- * Converts a consumer repo to ts-toolkit: rewrites the `lint`/`format`
+ * Converts a consumer repo to ts-canon: rewrites the `lint`/`format`
  * script block, deletes the ported `scripts/*.mts` copies and
- * `.ast-grep/rules/`, swaps the tool devDependencies for `ts-toolkit`, and
+ * `.ast-grep/rules/`, swaps the tool devDependencies for `ts-canon`, and
  * points `biome.json` at the shipped preset. Reviewable as one PR;
  * reverting that PR is the rollback.
  */

@@ -2,7 +2,7 @@
 #
 # Copy to the consumer repo root (as `sgconfig.yml`) to point bare
 # `ast-grep scan` and the ast-grep editor/LSP integrations at the rules
-# shipped with ts-toolkit. `ts-toolkit lint` passes explicit `--rule` paths
+# shipped with ts-canon. `ts-canon lint` passes explicit `--rule` paths
 # and does not need this file.
 ruleDirs:
-  - node_modules/ts-toolkit/rules
+  - node_modules/ts-canon/rules

@@ -67,7 +67,7 @@ const buildMiniRepo = (): [string, () => void] => {
     )}\n`,
   );
   // The preset is referenced by relative path so the fixture needs no
-  // node_modules install of ts-toolkit; repos use the bare specifier.
+  // node_modules install of ts-canon; repos use the bare specifier.
   const preset = relative(
     root,
     join(packageRoot(), "presets", "biome.preset.json"),

@@ -8,7 +8,7 @@ Instructions for AI coding agents working in this repository.
 pnpm install
 pnpm build    # type-check
 pnpm test     # run tests
-pnpm lint     # lint all files (through ts-toolkit itself)
+pnpm lint     # lint all files (through ts-canon itself)
 ```
 
 ## Required Workflow
@@ -20,10 +20,10 @@ pnpm build && pnpm lint && pnpm test
 ```
 
 All three must pass with zero errors. This repo is self-hosted: its own
-lint and format run through `ts-toolkit lint` / `ts-toolkit format`, so
-a change that breaks the dogfood loop is not done.
+lint and format run through `ts-canon lint` / `ts-canon format`, so a
+change that breaks the dogfood loop is not done.
 
-Run tooling through `pnpm <script>`; the scripts invoke the `ts-toolkit`
+Run tooling through `pnpm <script>`; the scripts invoke the `ts-canon`
 bin (and `tsc`/`vitest`) that pnpm links into `node_modules/.bin`, under
 the `scriptShell: bash` setting from `pnpm-workspace.yaml`. On Windows,
 drive the toolchain from Git Bash.
@@ -90,7 +90,7 @@ Source files must not begin with a `//` or `/*` comment (ast-grep rule
 - Trailing commas
 - Semicolons
 - Arrow function parentheses always
-- Markdown formatted by pandoc (`ts-toolkit format` handles it)
+- Markdown formatted by pandoc (`ts-canon format` handles it)
 
 ## Formatting
 
@@ -114,7 +114,7 @@ formats all files 4. `biome check` — applies lint auto-fixes 5. `pandoc`
   `oxlint`) and the spawn-by-absolute-path `runner`
 - `presets/`, `rules/` — the shipped biome/tsconfig/vitest/ast-grep
   assets, referenced by the package `exports` map
-- `bin/ts-toolkit.mjs` — the published launcher shim (plain ESM JS)
+- `bin/ts-canon.mjs` — the published launcher shim (plain ESM JS)
 - Tests live in `src/tests/` (filenames end in `.test.ts`); fixtures are
   generated into temp dirs by the checked-in generators, so the
   self-hosted lint stays green

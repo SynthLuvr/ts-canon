@@ -13,10 +13,10 @@ repo) picks up the preset’s rules: a `var` declaration is flagged as
 (`"vcs": { "enabled": false }`) merges over the preset. Resolution is by
 literal package subpath under `node_modules`, not via the package
 `exports` map — so the preset must exist at
-`node_modules/ts-toolkit/presets/biome.preset.json` on disk.
-Consequence: `presets/` and `rules/` live at the package root (not under
-`src/`), and the package’s own `biome.json` dogfoods the bare specifier
-`"ts-toolkit/presets/biome.preset.json"` through the pnpm self-link.
+`node_modules/ts-canon/presets/biome.preset.json` on disk. Consequence:
+`presets/` and `rules/` live at the package root (not under `src/`), and
+the package’s own `biome.json` dogfoods the bare specifier
+`"ts-canon/presets/biome.preset.json"` through the pnpm self-link.
 
 ## 2. tsconfig `extends` via the package — WORKS
 
@@ -58,7 +58,7 @@ cutoff to keep installs policy-clean.
 
 ## Additional decisions recorded during implementation
 
-- **jscpd ignore.** The template ran `jscpd src`; `ts-toolkit lint`
+- **jscpd ignore.** The template ran `jscpd src`; `ts-canon lint`
   defaults to path `.` and therefore passes
   `--ignore "**/node_modules/**,**/coverage/**"` so default runs stay
   out of `node_modules`.
@@ -70,7 +70,7 @@ cutoff to keep installs policy-clean.
   oxlint CLI in-process (reading `process.argv`); the orchestrator
   spawns the same entry with the same env and args instead, so
   `process.argv` stays clean for subcommand parsing.
-- **Fix hint.** The pandoc drift message points at `ts-toolkit format`
+- **Fix hint.** The pandoc drift message points at `ts-canon format`
   instead of `pnpm format:md` (same check, new entry point).
 - **Fixture generation.** The integration fixture is generated into a
   temp dir by a checked-in generator rather than checked in as raw
@@ -92,7 +92,7 @@ cutoff to keep installs policy-clean.
 - **`pnpm doctor` is a pnpm built-in** and shadows a script of the same
   name; the repo’s script must be invoked as `pnpm run doctor`.
 - **convert-to-arrow requires a `tsconfig.json`** in the target
-  directory (ts-morph reads it unconditionally); `ts-toolkit migrate`
+  directory (ts-morph reads it unconditionally); `ts-canon migrate`
   leaves consumer tsconfigs in place, and the fixture generator writes
   one that extends the shipped `tsconfig.base.json`.
 - **ast-grep cosmetic noise.** Scanning paths outside a git repo

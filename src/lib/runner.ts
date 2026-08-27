@@ -13,8 +13,8 @@ import { fileURLToPath } from "node:url";
  * Locates an installed package directory by walking up from this file, the
  * way node resolves modules. Unlike `require.resolve`, the walk is not
  * blocked by a package `exports` map, and it works for the dependency
- * layouts ts-toolkit runs in: this repo (deps at the root), a pnpm install
- * (deps under `node_modules/ts-toolkit/node_modules`), and plain hoisted
+ * layouts ts-canon runs in: this repo (deps at the root), a pnpm install
+ * (deps under `node_modules/ts-canon/node_modules`), and plain hoisted
  * installs.
  */
 const findPackageDir = (pkg: string): string => {
@@ -26,7 +26,7 @@ const findPackageDir = (pkg: string): string => {
     if (parent === dir) break;
     dir = parent;
   }
-  throw new Error(`cannot find package ${pkg} from ts-toolkit`);
+  throw new Error(`cannot find package ${pkg} from ts-canon`);
 };
 
 /**
@@ -97,7 +97,7 @@ const runCommand = (
       { stdio: "inherit", cwd: options.cwd },
     );
     child.on("error", (error) => {
-      console.error(`ts-toolkit: failed to run ${file}: ${error.message}`);
+      console.error(`ts-canon: failed to run ${file}: ${error.message}`);
       resolve(1);
     });
     child.on("close", (code) => resolve(code ?? 1));

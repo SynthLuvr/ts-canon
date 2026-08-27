@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Launcher for the ts-toolkit CLI. Runs the TypeScript entry point through
+// Launcher for the ts-canon CLI. Runs the TypeScript entry point through
 // the bundled tsx, resolved by absolute path and spawned under the current
 // node — no shell, no `.CMD` shim, per the Windows/AppLocker contract in
 // src/lib/runner.ts.
@@ -22,7 +22,7 @@ const findTsx = () => {
     if (parent === dir) break;
     dir = parent;
   }
-  throw new Error("ts-toolkit: cannot find the bundled tsx package");
+  throw new Error("ts-canon: cannot find the bundled tsx package");
 };
 
 const entry = join(packageRoot, "src", "bin", "main.ts");
@@ -32,7 +32,7 @@ const result = spawnSync(
   { stdio: "inherit" },
 );
 if (result.error) {
-  console.error(`ts-toolkit: failed to start: ${result.error.message}`);
+  console.error(`ts-canon: failed to start: ${result.error.message}`);
   process.exit(1);
 }
 process.exit(result.status ?? 1);

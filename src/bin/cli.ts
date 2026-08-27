@@ -3,13 +3,13 @@ import { runFormat } from "./format";
 import { runLint } from "./lint";
 import { runMigrate } from "./migrate";
 
-const USAGE = `usage: ts-toolkit <command> [paths...] [options]
+const USAGE = `usage: ts-canon <command> [paths...] [options]
 
 commands:
   lint      run all lint checks (biome, oxlint, ast-grep, pandoc, peers, audit, jscpd)
   format    run all formatters (arrows, braces, biome, biome check, markdown)
   doctor    verify pandoc, node, pnpm, and bundled tool versions
-  migrate   convert a consumer repo to ts-toolkit
+  migrate   convert a consumer repo to ts-canon
 
 options:
   --fast     lint: skip pnpm audit and jscpd

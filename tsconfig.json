@@ -1,5 +1,5 @@
 {
-  "extends": "ts-toolkit/presets/tsconfig.base.json",
+  "extends": "ts-canon/presets/tsconfig.base.json",
   "include": ["src/**/*.ts", "presets/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

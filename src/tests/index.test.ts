@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import * as toolkit from "../index";
+import * as canon from "../index";
 
 describe("public API surface", () => {
   it("exports the CLI entry points and lib helpers", () => {
-    expect(typeof toolkit.main).toBe("function");
-    expect(typeof toolkit.runLint).toBe("function");
-    expect(typeof toolkit.runFormat).toBe("function");
-    expect(typeof toolkit.runDoctor).toBe("function");
-    expect(typeof toolkit.runMigrate).toBe("function");
-    expect(typeof toolkit.resolveBin).toBe("function");
-    expect(typeof toolkit.runCommand).toBe("function");
-    expect(typeof toolkit.runSequence).toBe("function");
-    expect(typeof toolkit.findMarkdown).toBe("function");
-    expect(typeof toolkit.pandocFormat).toBe("function");
-    expect(typeof toolkit.pnpmPeersCheck).toBe("function");
-    expect(typeof toolkit.oxlintCli).toBe("function");
-    expect(typeof toolkit.runOxlint).toBe("function");
-    expect(typeof toolkit.tsgolintExe).toBe("function");
-    expect(toolkit.USAGE).toContain("usage: ts-toolkit");
+    expect(typeof canon.main).toBe("function");
+    expect(typeof canon.runLint).toBe("function");
+    expect(typeof canon.runFormat).toBe("function");
+    expect(typeof canon.runDoctor).toBe("function");
+    expect(typeof canon.runMigrate).toBe("function");
+    expect(typeof canon.resolveBin).toBe("function");
+    expect(typeof canon.runCommand).toBe("function");
+    expect(typeof canon.runSequence).toBe("function");
+    expect(typeof canon.findMarkdown).toBe("function");
+    expect(typeof canon.pandocFormat).toBe("function");
+    expect(typeof canon.pnpmPeersCheck).toBe("function");
+    expect(typeof canon.oxlintCli).toBe("function");
+    expect(typeof canon.runOxlint).toBe("function");
+    expect(typeof canon.tsgolintExe).toBe("function");
+    expect(canon.USAGE).toContain("usage: ts-canon");
   });
 });

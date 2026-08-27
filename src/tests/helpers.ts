@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 /** Creates a unique temp dir; returns it and a cleanup function. */
 const withTempDir = (): [string, () => void] => {
-  const dir = mkdtempSync(join(tmpdir(), "ts-toolkit-"));
+  const dir = mkdtempSync(join(tmpdir(), "ts-canon-"));
   return [dir, () => rmSync(dir, { recursive: true, force: true })];
 };
 

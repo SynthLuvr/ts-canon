@@ -1,4 +1,4 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "extends": ["ts-toolkit/presets/biome.preset.json"]
+  "extends": ["ts-canon/presets/biome.preset.json"]
 }

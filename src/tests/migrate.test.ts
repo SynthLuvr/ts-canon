@@ -71,15 +71,15 @@ describe("runMigrate", () => {
       expect(runMigrate({ root })).toBe(0);
 
       const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-      expect(pkg.scripts.lint).toBe("ts-toolkit lint");
-      expect(pkg.scripts.format).toBe("ts-toolkit format");
+      expect(pkg.scripts.lint).toBe("ts-canon lint");
+      expect(pkg.scripts.format).toBe("ts-canon format");
       expect(pkg.scripts.build).toBe("tsc");
       expect(pkg.scripts.test).toBe("vitest run --coverage");
       expect(
         Object.keys(pkg.scripts).filter((key) => key.includes(":")),
       ).toEqual([]);
 
-      expect(pkg.devDependencies["ts-toolkit"]).toBe("^0");
+      expect(pkg.devDependencies["ts-canon"]).toBe("^0");
       expect(pkg.devDependencies.typescript).toBe("^5.6.3");
       expect(pkg.devDependencies.vitest).toBe("^4.1.11");
       expect(pkg.devDependencies["@biomejs/biome"]).toBeUndefined();
@@ -98,7 +98,7 @@ describe("runMigrate", () => {
       expect(existsSync(join(root, ".ast-grep"))).toBe(false);
 
       const biome = JSON.parse(readFileSync(join(root, "biome.json"), "utf8"));
-      expect(biome.extends).toEqual(["ts-toolkit/presets/biome.preset.json"]);
+      expect(biome.extends).toEqual(["ts-canon/presets/biome.preset.json"]);
       expect(biome.linter).toEqual({ enabled: true });
     } finally {
       cleanup();
@@ -115,7 +115,7 @@ describe("runMigrate", () => {
       );
       expect(runMigrate({ root, version: "^0.1.0" })).toBe(0);
       const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-      expect(pkg.devDependencies["ts-toolkit"]).toBe("^0.1.0");
+      expect(pkg.devDependencies["ts-canon"]).toBe("^0.1.0");
     } finally {
       cleanup();
     }
