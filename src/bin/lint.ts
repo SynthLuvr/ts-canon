@@ -5,8 +5,9 @@ import { runPandoc } from "../lib/pandoc-md";
 import { pnpmCommand, pnpmPeersCheck } from "../lib/peer-deps";
 import type { Step } from "../lib/runner";
 import {
-  packageRoot,
   resolveBin,
+  runAstGrep,
+  runBiome,
   runCommand,
   runSequence,
 } from "../lib/runner";
@@ -37,20 +38,7 @@ const astGrepRuleStep = (
 ): Step => ({
   name: `ast-grep:${id}`,
   run: () =>
-    runCommand(
-      resolveBin("@ast-grep/cli", "ast-grep"),
-      [
-        "scan",
-        "--rule",
-        join(packageRoot(), "rules", `${id}.yml`),
-        "--error",
-        id,
-        "--globs",
-        "!**/*.d.ts",
-        ...paths,
-      ],
-      { cwd: root },
-    ),
+    runAstGrep(id, paths, root, [`--error=${id}`, "--globs", "!**/*.d.ts"]),
 });
 
 /**
@@ -66,13 +54,7 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
   const hasLockfile = existsSync(join(root, "pnpm-lock.yaml"));
 
   const steps: Step[] = [
-    {
-      name: "biome",
-      run: () =>
-        runCommand(resolveBin("@biomejs/biome", "biome"), ["check", ...paths], {
-          cwd: root,
-        }),
-    },
+    { name: "biome", run: () => runBiome(["check"], paths, root) },
     {
       name: "oxlint",
       run: () => runOxlint(["--deny-warnings", ...paths], root),

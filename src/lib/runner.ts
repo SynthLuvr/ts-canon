@@ -103,6 +103,39 @@ const runCommand = (
     child.on("close", (code) => resolve(code ?? 1));
   });
 
+/**
+ * Runs `ast-grep scan` with a rule from this package's `rules/` directory.
+ * Flags that take a rule id must use `--flag=value` syntax — a separate
+ * value argument is parsed as another scan path, not as the flag's value.
+ */
+const runAstGrep = (
+  rule: string,
+  paths: string[],
+  root: string,
+  extraArgs: string[] = [],
+): Promise<number> =>
+  runCommand(
+    resolveBin("@ast-grep/cli", "ast-grep"),
+    [
+      "scan",
+      "--rule",
+      join(packageRoot(), "rules", `${rule}.yml`),
+      ...extraArgs,
+      ...paths,
+    ],
+    { cwd: root },
+  );
+
+/** Runs biome with `args` over `paths`, from the `root` working directory. */
+const runBiome = (
+  args: string[],
+  paths: string[],
+  root: string,
+): Promise<number> =>
+  runCommand(resolveBin("@biomejs/biome", "biome"), [...args, ...paths], {
+    cwd: root,
+  });
+
 /** A named, ordered step that reports success as exit code 0. */
 type Step = { name: string; run: () => Promise<number> };
 
@@ -132,6 +165,8 @@ export {
   findPackageDir,
   packageRoot,
   resolveBin,
+  runAstGrep,
+  runBiome,
   runCommand,
   runSequence,
 };

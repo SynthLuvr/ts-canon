@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { pandocVersion } from "../lib/pandoc-md";
+import { PANDOC_MISSING, pandocVersion } from "../lib/pandoc-md";
 import { pnpmVersion } from "../lib/peer-deps";
 import { entryKind, resolveBin } from "../lib/runner";
 
@@ -30,7 +30,7 @@ const report = (name: string, ok: boolean, detail: string): void => {
   console.log(`${ok ? "ok  " : "FAIL"} ${name} — ${detail}`);
 };
 
-/** Runs one `--version` probe against a resolved tool entry point. */
+/** First line of `<tool> --version`, or `undefined` when it cannot run. */
 const toolVersion = (file: string): string | undefined => {
   const kind = entryKind(file);
   const result = spawnSync(
@@ -38,8 +38,7 @@ const toolVersion = (file: string): string | undefined => {
     kind === "node" ? [file, "--version"] : ["--version"],
     { encoding: "utf8" },
   );
-  if (result.error !== undefined && result.error !== null) return undefined;
-  if (result.status !== 0) return undefined;
+  if (result.error || result.status !== 0) return undefined;
   return result.stdout.split("\n", 1)[0]?.trim();
 };
 
@@ -53,48 +52,48 @@ const BUNDLED_TOOLS: [string, string][] = [
   ["tsx", "tsx"],
 ];
 
-/**
- * Verifies the environment the toolchain needs: node engine, pnpm, pandoc
- * (>= 3.10, the one non-npm dependency), the bundled tools, and the
- * consumer-side `typescript`. Missing hard requirements (pandoc, node)
- * produce a non-zero exit; advisory findings (pnpm, typescript) are
- * warnings.
- */
-const runDoctor = (): number => {
-  let failed = false;
+const checkNode = (): boolean => {
+  const version = parseVersion(process.versions.node);
+  const ok = version !== undefined && isAtLeast(version, MIN_NODE);
+  report("node", ok, `${process.versions.node} (engines: >=24)`);
+  return ok;
+};
 
-  const nodeVersion = parseVersion(process.versions.node);
-  const nodeOk = nodeVersion !== undefined && isAtLeast(nodeVersion, MIN_NODE);
-  report("node", nodeOk, `${process.versions.node} (engines: >=24)`);
-  failed ||= !nodeOk;
-
+/** pnpm is advisory: scripts still work when run outside a pnpm process. */
+const reportPnpm = (): void => {
   const pnpm = pnpmVersion();
   if (pnpm === undefined)
     console.log("warn pnpm — not detected (is ts-toolkit run under pnpm?)");
   else console.log(`ok   pnpm — ${pnpm}`);
+};
 
-  const pandoc = pandocVersion();
-  if (pandoc === undefined) {
-    console.error(
-      "pandoc was not found on PATH. Install pandoc (>= 3.10) and retry.",
-    );
-    failed = true;
-  } else {
-    const parsed = parseVersion(pandoc);
-    const pandocOk = parsed !== undefined && isAtLeast(parsed, MIN_PANDOC);
-    report("pandoc", pandocOk, `${pandoc} (required: >=3.10)`);
-    failed ||= !pandocOk;
+const checkPandoc = (): boolean => {
+  const version = pandocVersion();
+  if (version === undefined) {
+    console.error(PANDOC_MISSING);
+    return false;
   }
+  const parsed = parseVersion(version);
+  const ok = parsed !== undefined && isAtLeast(parsed, MIN_PANDOC);
+  report("pandoc", ok, `${version} (required: >=3.10)`);
+  return ok;
+};
 
+const checkBundledTools = (): boolean => {
+  let ok = true;
   for (const [pkg, bin] of BUNDLED_TOOLS)
     try {
       const version = toolVersion(resolveBin(pkg, bin)) ?? "installed";
       console.log(`ok   ${pkg} — ${version}`);
     } catch (error) {
       report(pkg, false, (error as Error).message);
-      failed = true;
+      ok = false;
     }
+  return ok;
+};
 
+/** Advisory: `tsc` and editors need a project-local typescript install. */
+const reportConsumerTypescript = (): void => {
   try {
     const version = toolVersion(resolveBin("typescript", "tsc"));
     if (version === undefined) throw new Error("tsc --version failed");
@@ -104,7 +103,21 @@ const runDoctor = (): number => {
       "warn typescript (consumer-side) — not found; `tsc` and editors need a project-local install",
     );
   }
+};
 
+/**
+ * Verifies the environment the toolchain needs: node engine, pnpm, pandoc
+ * (>= 3.10, the one non-npm dependency), the bundled tools, and the
+ * consumer-side `typescript`. Missing hard requirements (pandoc, node)
+ * produce a non-zero exit; advisory findings (pnpm, typescript) are
+ * warnings.
+ */
+const runDoctor = (): number => {
+  let failed = !checkNode();
+  reportPnpm();
+  failed ||= !checkPandoc();
+  failed ||= !checkBundledTools();
+  reportConsumerTypescript();
   return failed ? 1 : 0;
 };
 

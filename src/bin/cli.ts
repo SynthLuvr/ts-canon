@@ -25,18 +25,15 @@ const main = async (argv: string[]): Promise<number> => {
   const paths = rest.filter((arg) => !arg.startsWith("--"));
   const flags = rest.filter((arg) => arg.startsWith("--"));
 
-  if (
-    command === undefined ||
-    command === "help" ||
-    command === "--help" ||
-    flags.includes("--help")
-  ) {
-    if (command === undefined) {
-      console.error(USAGE);
-      return 2;
-    }
+  const wantsHelp =
+    command === "help" || command === "--help" || flags.includes("--help");
+  if (wantsHelp) {
     console.log(USAGE);
     return 0;
+  }
+  if (command === undefined) {
+    console.error(USAGE);
+    return 2;
   }
 
   switch (command) {

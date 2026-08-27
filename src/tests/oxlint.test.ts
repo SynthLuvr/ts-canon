@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -33,7 +33,6 @@ describe("runOxlint", () => {
     try {
       const bad = join(dir, "bad.ts");
       // eval() trips oxlint's no-eval rule with --deny-warnings.
-      const { writeFileSync } = await import("node:fs");
       writeFileSync(
         bad,
         'const f = (): unknown => eval("1 + 1");\nexport { f };\n',

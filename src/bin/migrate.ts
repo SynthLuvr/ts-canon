@@ -47,6 +47,11 @@ const LEGACY_SCRIPT_FILES = [
 
 const BIOME_EXTENDS = "ts-toolkit/presets/biome.preset.json";
 
+const NEXT_STEPS = `
+Next: pnpm install && pnpm lint
+Consider extending tsconfig.json from ts-toolkit/presets/tsconfig.base.json
+and keeping a local .oxlintrc.json for type-aware rules.`;
+
 type PackageJson = {
   scripts?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -60,6 +65,31 @@ const readJson = <T>(file: string): T =>
 const writeJson = (file: string, value: unknown): void => {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+};
+
+/** Collapses the legacy per-step scripts into the ts-toolkit pair, in place. */
+const rewriteScripts = (pkg: PackageJson): string[] => {
+  const scripts: Record<string, string> = { ...pkg.scripts };
+  const removed = LEGACY_STEP_SCRIPTS.filter((key) => key in scripts);
+  for (const key of removed) delete scripts[key];
+  scripts.lint = "ts-toolkit lint";
+  scripts.format = "ts-toolkit format";
+  pkg.scripts = scripts;
+  return removed;
+};
+
+/** Swaps the replaced tool devDependencies for ts-toolkit, sorted by name. */
+const rewriteDevDeps = (pkg: PackageJson, version?: string): string[] => {
+  const devDeps: Record<string, string> = { ...pkg.devDependencies };
+  const removed = Object.keys(devDeps).filter(
+    (name) => TOOL_DEV_DEPS.has(name) || name.startsWith("@ast-grep/cli-"),
+  );
+  for (const name of removed) delete devDeps[name];
+  devDeps["ts-toolkit"] = version ?? "^0";
+  pkg.devDependencies = Object.fromEntries(
+    Object.entries(devDeps).sort(([a], [b]) => a.localeCompare(b)),
+  );
+  return removed;
 };
 
 /** Rewrites `biome.json` to extend the shipped preset, preserving overrides. */
@@ -90,6 +120,41 @@ const removeIfEmpty = (dir: string): void => {
   }
 };
 
+/** Deletes the ported `scripts/*.mts` copies and `.ast-grep/rules/`. */
+const deletePortedFiles = (root: string): void => {
+  for (const rel of LEGACY_SCRIPT_FILES) {
+    const file = join(root, rel);
+    if (!existsSync(file)) continue;
+    rmSync(file);
+    console.log(`[migrate] deleted ${file}`);
+  }
+  removeIfEmpty(join(root, "scripts"));
+
+  const rulesDir = join(root, ".ast-grep", "rules");
+  if (existsSync(rulesDir)) {
+    rmSync(rulesDir, { recursive: true, force: true });
+    console.log(`[migrate] deleted ${rulesDir}`);
+  }
+  removeIfEmpty(join(root, ".ast-grep"));
+};
+
+/** Prints the same plan the real run would apply, without writing. */
+const printDryRunPlan = (
+  root: string,
+  removedScripts: string[],
+  removedDeps: string[],
+): void => {
+  console.log("[migrate] dry run — no changes written");
+  console.log(`[migrate] would remove scripts: ${removedScripts.join(", ")}`);
+  console.log(`[migrate] would remove devDeps: ${removedDeps.join(", ")}`);
+  for (const rel of LEGACY_SCRIPT_FILES) {
+    const file = join(root, rel);
+    if (existsSync(file)) console.log(`[migrate] would delete ${file}`);
+  }
+  const rulesDir = join(root, ".ast-grep", "rules");
+  if (existsSync(rulesDir)) console.log(`[migrate] would delete ${rulesDir}`);
+};
+
 /**
  * Converts a consumer repo to ts-toolkit: rewrites the `lint`/`format`
  * script block, deletes the ported `scripts/*.mts` copies and
@@ -106,36 +171,11 @@ const runMigrate = (options: MigrateOptions = {}): number => {
   }
 
   const pkg = readJson<PackageJson>(pkgPath);
-  const scripts: Record<string, string> = { ...pkg.scripts };
-  const removedScripts = LEGACY_STEP_SCRIPTS.filter((key) => {
-    if (!(key in scripts)) return false;
-    delete scripts[key];
-    return true;
-  });
-  scripts.lint = "ts-toolkit lint";
-  scripts.format = "ts-toolkit format";
-
-  const devDeps: Record<string, string> = { ...pkg.devDependencies };
-  const removedDeps = Object.keys(devDeps).filter(
-    (name) => TOOL_DEV_DEPS.has(name) || name.startsWith("@ast-grep/cli-"),
-  );
-  for (const name of removedDeps) delete devDeps[name];
-  devDeps["ts-toolkit"] = options.version ?? "^0";
-  pkg.scripts = scripts;
-  pkg.devDependencies = Object.fromEntries(
-    Object.entries(devDeps).sort(([a], [b]) => a.localeCompare(b)),
-  );
-
-  const doomedFiles = LEGACY_SCRIPT_FILES.map((file) => join(root, file));
-  const rulesDir = join(root, ".ast-grep", "rules");
+  const removedScripts = rewriteScripts(pkg);
+  const removedDeps = rewriteDevDeps(pkg, options.version);
 
   if (options.dryRun === true) {
-    console.log("[migrate] dry run — no changes written");
-    console.log(`[migrate] would remove scripts: ${removedScripts.join(", ")}`);
-    console.log(`[migrate] would remove devDeps: ${removedDeps.join(", ")}`);
-    for (const file of doomedFiles)
-      if (existsSync(file)) console.log(`[migrate] would delete ${file}`);
-    if (existsSync(rulesDir)) console.log(`[migrate] would delete ${rulesDir}`);
+    printDryRunPlan(root, removedScripts, removedDeps);
     return 0;
   }
 
@@ -143,26 +183,9 @@ const runMigrate = (options: MigrateOptions = {}): number => {
   console.log(
     `[migrate] rewrote package.json (removed ${removedScripts.length} scripts, ${removedDeps.length} devDeps)`,
   );
-
-  for (const file of doomedFiles) {
-    if (!existsSync(file)) continue;
-    rmSync(file);
-    console.log(`[migrate] deleted ${file}`);
-  }
-  removeIfEmpty(join(root, "scripts"));
-  if (existsSync(rulesDir)) {
-    rmSync(rulesDir, { recursive: true, force: true });
-    console.log(`[migrate] deleted ${rulesDir}`);
-  }
-  removeIfEmpty(join(root, ".ast-grep"));
-
+  deletePortedFiles(root);
   ensureBiomeExtends(root, false);
-
-  console.log(
-    "\nNext: pnpm install && pnpm lint\n" +
-      "Consider extending tsconfig.json from ts-toolkit/presets/tsconfig.base.json\n" +
-      "and keeping a local .oxlintrc.json for type-aware rules.",
-  );
+  console.log(NEXT_STEPS);
   return 0;
 };
 

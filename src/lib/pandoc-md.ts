@@ -4,6 +4,9 @@ import { join, relative } from "node:path";
 
 const SKIP_PARTS = new Set(["node_modules", ".git"]);
 
+const PANDOC_MISSING =
+  "pandoc was not found on PATH. Install pandoc (>= 3.10) and retry.";
+
 /**
  * Collects `*.md` files under `dir`, sorted. Symlinks are skipped: pnpm
  * workspace links can form cycles that would loop this walk forever.
@@ -41,10 +44,12 @@ const pandocFormat = (root: string, file: string): string => {
 /** First word of `pandoc --version`'s first line, e.g. "3.10.2". */
 const pandocVersion = (): string | undefined => {
   const result = spawnSync("pandoc", ["--version"], { encoding: "utf8" });
-  if (result.error !== undefined && result.error !== null) return undefined;
-  if (result.status !== 0) return undefined;
+  if (result.error || result.status !== 0) return undefined;
   return result.stdout.split("\n", 1)[0]?.split(/\s+/)[1];
 };
+
+const isMissingPandoc = (error: unknown): boolean =>
+  (error as NodeJS.ErrnoException).code === "ENOENT";
 
 type PandocMode = "check" | "write";
 
@@ -62,14 +67,9 @@ const runPandoc = (root: string, mode: PandocMode): number => {
     try {
       formatted = pandocFormat(root, file);
     } catch (error) {
-      const err = error as NodeJS.ErrnoException;
-      if (err.code === "ENOENT") {
-        console.error(
-          "pandoc was not found on PATH. Install pandoc (>= 3.10) and retry.",
-        );
-        return 1;
-      }
-      throw error;
+      if (!isMissingPandoc(error)) throw error;
+      console.error(PANDOC_MISSING);
+      return 1;
     }
 
     const rel = relative(root, file);
@@ -83,16 +83,16 @@ const runPandoc = (root: string, mode: PandocMode): number => {
     }
   }
 
-  if (mode === "check") {
-    if (drifted.length > 0) {
-      console.error("Markdown files are not pandoc-formatted:");
-      for (const file of drifted) console.error(`  ${file}`);
-      console.error("\nFix with: ts-toolkit format");
-      return 1;
-    }
+  if (mode === "write") return 0;
+  if (drifted.length === 0) {
     console.log(`pandoc check passed for ${files.length} markdown file(s).`);
+    return 0;
   }
-  return 0;
+
+  console.error("Markdown files are not pandoc-formatted:");
+  for (const file of drifted) console.error(`  ${file}`);
+  console.error("\nFix with: ts-toolkit format");
+  return 1;
 };
 
-export { findMarkdown, pandocFormat, pandocVersion, runPandoc };
+export { findMarkdown, PANDOC_MISSING, pandocFormat, pandocVersion, runPandoc };

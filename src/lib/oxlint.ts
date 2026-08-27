@@ -1,20 +1,10 @@
-import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { join } from "node:path";
-import { findPackageDir, runCommand } from "./runner";
+import { resolveBin, runCommand } from "./runner";
 
 const require = createRequire(import.meta.url);
 
-/**
- * Absolute path to oxlint's own CLI entry point, read from its `bin` field.
- */
-const oxlintCli = (): string => {
-  const dir = findPackageDir("oxlint");
-  const { bin } = JSON.parse(
-    readFileSync(join(dir, "package.json"), "utf8"),
-  ) as { bin: Record<string, string> };
-  return join(dir, bin.oxlint);
-};
+/** Absolute path to oxlint's own CLI entry point. */
+const oxlintCli = (): string => resolveBin("oxlint", "oxlint");
 
 /**
  * Absolute path to the tsgolint executable, or `undefined` when this

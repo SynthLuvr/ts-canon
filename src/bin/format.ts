@@ -1,9 +1,10 @@
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { runPandoc } from "../lib/pandoc-md";
 import type { Step } from "../lib/runner";
 import {
-  packageRoot,
   resolveBin,
+  runAstGrep,
+  runBiome,
   runCommand,
   runSequence,
 } from "../lib/runner";
@@ -20,7 +21,6 @@ type FormatOptions = { paths?: string[] };
 const runFormat = async (options: FormatOptions = {}): Promise<number> => {
   const paths = resolvePaths(options.paths);
   const root = resolve(paths[0] ?? ".");
-  const astGrep = resolveBin("@ast-grep/cli", "ast-grep");
 
   const steps: Step[] = [
     {
@@ -32,36 +32,15 @@ const runFormat = async (options: FormatOptions = {}): Promise<number> => {
     },
     {
       name: "strip-braces",
-      run: () =>
-        runCommand(
-          astGrep,
-          [
-            "scan",
-            "--rule",
-            join(packageRoot(), "rules", "strip-braces.yml"),
-            "-U",
-            ...paths,
-          ],
-          { cwd: root },
-        ),
+      run: () => runAstGrep("strip-braces", paths, root, ["-U"]),
     },
     {
       name: "biome format",
-      run: () =>
-        runCommand(
-          resolveBin("@biomejs/biome", "biome"),
-          ["format", "--write", ...paths],
-          { cwd: root },
-        ),
+      run: () => runBiome(["format", "--write"], paths, root),
     },
     {
       name: "biome check",
-      run: () =>
-        runCommand(
-          resolveBin("@biomejs/biome", "biome"),
-          ["check", "--write", ...paths],
-          { cwd: root },
-        ),
+      run: () => runBiome(["check", "--write"], paths, root),
     },
     { name: "pandoc", run: () => Promise.resolve(runPandoc(root, "write")) },
   ];

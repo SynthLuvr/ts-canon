@@ -31,7 +31,7 @@ const result = spawnSync(
   [findTsx(), entry, ...process.argv.slice(2)],
   { stdio: "inherit" },
 );
-if (result.error !== undefined && result.error !== null) {
+if (result.error) {
   console.error(`ts-toolkit: failed to start: ${result.error.message}`);
   process.exit(1);
 }
