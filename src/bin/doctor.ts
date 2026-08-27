@@ -60,9 +60,9 @@ const checkNode = (): boolean => {
 };
 
 /**
- * pnpm is advisory: scripts still work when run outside a pnpm process.
- * `pnpm exec` does not set `npm_execpath` (only `pnpm run` does), so when
- * pnpm cannot be spawned, fall back to the repo's `packageManager` field.
+ * pnpm is advisory: scripts still work outside a pnpm process. When pnpm
+ * cannot be spawned (`pnpm exec` does not set `npm_execpath`), fall back
+ * to the repo's `packageManager` field.
  */
 const reportPnpm = (): void => {
   const pnpm = pnpmVersion();

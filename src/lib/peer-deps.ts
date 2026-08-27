@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 /**
@@ -55,15 +55,12 @@ const pnpmVersion = (): string | undefined => {
  * manifest is absent, unreadable, or declares nothing.
  */
 const manifestPackageManager = (dir: string): string | undefined => {
-  const manifest = join(dir, "package.json");
-  if (!existsSync(manifest)) return undefined;
   try {
-    const parsed = JSON.parse(readFileSync(manifest, "utf8")) as {
-      packageManager?: string;
-    };
+    const parsed = JSON.parse(
+      readFileSync(join(dir, "package.json"), "utf8"),
+    ) as { packageManager?: string };
     return parsed.packageManager;
   } catch {
-    // Unreadable or malformed manifests carry no declaration.
     return undefined;
   }
 };
@@ -76,12 +73,10 @@ const pnpmFromField = (field: string): string | undefined => {
 
 /**
  * pnpm version from the nearest `packageManager` field at or above
- * `startDir`, or `undefined` when none declares pnpm. `pnpm exec` does
- * not set `npm_execpath` (only `pnpm run` does), so advisory checks fall
- * back to this: the field records the exact pnpm the repo pins. Manifests
- * without the field (e.g. monorepo subpackages) are walked past; walking
- * stops at the first manifest that declares a package manager, even when
- * it names another tool.
+ * `startDir`, walking past manifests without the field (monorepo
+ * subpackages) and stopping at the first declaration — even when it
+ * names another tool. Advisory fallback for `pnpm exec`, which (unlike
+ * `pnpm run`) does not set `npm_execpath`.
  */
 const pnpmVersionFromPackageManager = (
   startDir: string,

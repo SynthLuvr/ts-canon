@@ -109,7 +109,7 @@ const isRegistrySpec = (spec: string): boolean =>
 /**
  * Swaps the replaced tool devDependencies for ts-canon, sorted by name.
  * An existing non-registry spec (git, `file:`, `link:`, `workspace:`) is
- * preserved unless `version` overrides it explicitly.
+ * preserved unless `version` is given.
  */
 const rewriteDevDeps = (pkg: PackageJson, version?: string): DevDepResult => {
   const devDeps: Record<string, string> = { ...pkg.devDependencies };
@@ -119,11 +119,10 @@ const rewriteDevDeps = (pkg: PackageJson, version?: string): DevDepResult => {
   for (const name of removed) delete devDeps[name];
   const existing = devDeps["ts-canon"];
   const preserved =
-    version === undefined &&
     existing !== undefined &&
-    !isRegistrySpec(existing);
-  const spec =
-    preserved && existing !== undefined ? existing : (version ?? "^0");
+    !isRegistrySpec(existing) &&
+    version === undefined;
+  const spec = preserved ? existing : (version ?? "^0");
   devDeps["ts-canon"] = spec;
   pkg.devDependencies = Object.fromEntries(
     Object.entries(devDeps).sort(([a], [b]) => a.localeCompare(b)),
@@ -202,11 +201,10 @@ const printDryRunPlan = (
 /**
  * Converts a consumer repo to ts-canon: rewrites the `lint`/`format`
  * script block, deletes the ported `scripts/*.mts` copies and
- * `.ast-grep/rules/`, swaps the tool devDependencies for `ts-canon` (an
- * existing non-registry spec — git, `file:`, `link:`, `workspace:` — is
- * preserved unless `version` overrides it), and points `biome.json` at
- * the shipped preset. Reviewable as one PR; reverting that PR is the
- * rollback.
+ * `.ast-grep/rules/`, swaps the tool devDependencies for `ts-canon`
+ * (preserving an existing non-registry spec), and points `biome.json`
+ * at the shipped preset. Reviewable as one PR; reverting that PR is
+ * the rollback.
  */
 const runMigrate = (options: MigrateOptions = {}): number => {
   const root = resolve(options.root ?? ".");

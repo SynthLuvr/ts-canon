@@ -19,32 +19,23 @@ options:
   --help             show this help`;
 
 /**
- * Takes `--name value` or `--name=value` out of `args`, returning the
- * value (when given), whether the flag was present without a value, and
- * the remaining args (the consumed value is removed too, so it cannot be
- * mistaken for a path).
+ * Reads `--name value` or `--name=value` from `args`. A bare `--name` —
+ * missing or swallowed by the next `--flag` — is flagged `missingValue`.
  */
 const takeOption = (
   args: string[],
   name: string,
-): { value?: string; missingValue: boolean; rest: string[] } => {
-  const rest: string[] = [];
-  let value: string | undefined;
-  let missingValue = false;
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === `--${name}`) {
-      const next = args[i + 1];
-      if (next === undefined || next.startsWith("--")) missingValue = true;
-      else {
-        value = next;
-        i += 1;
-      }
-    } else if (arg.startsWith(`--${name}=`)) {
-      value = arg.slice(`--${name}=`.length);
-    } else rest.push(arg);
+): { value?: string; missingValue?: boolean } => {
+  const flag = `--${name}`;
+  const index = args.indexOf(flag);
+  if (index !== -1) {
+    const next = args[index + 1];
+    return next === undefined || next.startsWith("--")
+      ? { missingValue: true }
+      : { value: next };
   }
-  return { value, missingValue, rest };
+  const inline = args.find((arg) => arg.startsWith(`${flag}=`));
+  return inline === undefined ? {} : { value: inline.slice(flag.length + 1) };
 };
 
 /**
