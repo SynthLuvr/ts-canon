@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 /**
  * Spawns pnpm without touching PATH: `npm_execpath` is pnpm's real entry
@@ -49,6 +51,52 @@ const pnpmVersion = (): string | undefined => {
 };
 
 /**
+ * `packageManager` field of the manifest at `dir`: `undefined` when the
+ * manifest is absent, unreadable, or declares nothing.
+ */
+const manifestPackageManager = (dir: string): string | undefined => {
+  const manifest = join(dir, "package.json");
+  if (!existsSync(manifest)) return undefined;
+  try {
+    const parsed = JSON.parse(readFileSync(manifest, "utf8")) as {
+      packageManager?: string;
+    };
+    return parsed.packageManager;
+  } catch {
+    // Unreadable or malformed manifests carry no declaration.
+    return undefined;
+  }
+};
+
+/** pnpm version from a `packageManager` value, corepack hash dropped. */
+const pnpmFromField = (field: string): string | undefined => {
+  const match = /^pnpm@([^\s+]+)/.exec(field);
+  return match === null ? undefined : match[1];
+};
+
+/**
+ * pnpm version from the nearest `packageManager` field at or above
+ * `startDir`, or `undefined` when none declares pnpm. `pnpm exec` does
+ * not set `npm_execpath` (only `pnpm run` does), so advisory checks fall
+ * back to this: the field records the exact pnpm the repo pins. Manifests
+ * without the field (e.g. monorepo subpackages) are walked past; walking
+ * stops at the first manifest that declares a package manager, even when
+ * it names another tool.
+ */
+const pnpmVersionFromPackageManager = (
+  startDir: string,
+): string | undefined => {
+  let dir = resolve(startDir);
+  for (;;) {
+    const field = manifestPackageManager(dir);
+    if (field !== undefined) return pnpmFromField(field);
+    const parent = dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+};
+
+/**
  * Fails when the installed tree has unmet or missing peer dependencies.
  * Uses `pnpm peers check` (which inspects the lockfile directly) rather than
  * `install --strict-peer-dependencies`: a frozen lockfile is not re-resolved
@@ -69,4 +117,9 @@ const pnpmPeersCheck = (root: string): number => {
   return 1;
 };
 
-export { pnpmCommand, pnpmPeersCheck, pnpmVersion };
+export {
+  pnpmCommand,
+  pnpmPeersCheck,
+  pnpmVersion,
+  pnpmVersionFromPackageManager,
+};

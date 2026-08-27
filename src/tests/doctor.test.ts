@@ -62,3 +62,30 @@ describe("runDoctor", () => {
     }
   });
 });
+
+describe("pnpm detection fallback", () => {
+  it("reports the packageManager field when npm_execpath is unset", async () => {
+    vi.resetModules();
+    vi.doMock("../lib/peer-deps", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("../lib/peer-deps")>();
+      return { ...actual, pnpmVersion: () => undefined };
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    try {
+      // cwd is this repo, whose package.json declares pnpm@11.22.0.
+      const { runDoctor: mocked } = await import("../bin/doctor");
+      expect(mocked()).toBe(0);
+      expect(log).toHaveBeenCalledWith(
+        expect.stringMatching(/^ok {3}pnpm — \d[\w.-]* \(packageManager\)$/),
+      );
+    } finally {
+      log.mockRestore();
+      error.mockRestore();
+      vi.doUnmock("../lib/peer-deps");
+      vi.resetModules();
+    }
+  });
+});

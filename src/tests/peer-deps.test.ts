@@ -2,7 +2,12 @@ import { chmodSync, copyFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { pnpmCommand, pnpmPeersCheck, pnpmVersion } from "../lib/peer-deps";
+import {
+  pnpmCommand,
+  pnpmPeersCheck,
+  pnpmVersion,
+  pnpmVersionFromPackageManager,
+} from "../lib/peer-deps";
 import { withTempDir, writeFixture } from "./helpers";
 
 /** Runs `body` with npm_execpath forced to `value`, restoring the original. */
@@ -138,6 +143,66 @@ describe("pnpmVersion", () => {
       withNpmExecpath(join(dir, "missing-pnpm-entry"), () => {
         expect(pnpmVersion()).toBeUndefined();
       });
+    } finally {
+      cleanup();
+    }
+  });
+});
+
+describe("pnpmVersionFromPackageManager", () => {
+  it("reads pnpm from the nearest declaring manifest", () => {
+    const [root, cleanup] = withTempDir();
+    try {
+      writeFixture(
+        root,
+        "package.json",
+        JSON.stringify({ packageManager: "pnpm@11.22.0" }),
+      );
+      expect(pnpmVersionFromPackageManager(root)).toBe("11.22.0");
+      writeFixture(
+        root,
+        "packages/inner/package.json",
+        JSON.stringify({ name: "inner" }),
+      );
+      expect(
+        pnpmVersionFromPackageManager(join(root, "packages", "inner")),
+      ).toBe("11.22.0");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("drops the corepack hash suffix", () => {
+    const [root, cleanup] = withTempDir();
+    try {
+      writeFixture(
+        root,
+        "package.json",
+        JSON.stringify({ packageManager: "pnpm@10.17.0+sha512.lZ" }),
+      );
+      expect(pnpmVersionFromPackageManager(root)).toBe("10.17.0");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("returns undefined when the nearest declaration names another tool", () => {
+    const [root, cleanup] = withTempDir();
+    try {
+      writeFixture(
+        root,
+        "package.json",
+        JSON.stringify({ packageManager: "npm@11.3.0" }),
+      );
+      writeFixture(
+        root,
+        "packages/inner/package.json",
+        JSON.stringify({ name: "inner" }),
+      );
+      expect(pnpmVersionFromPackageManager(root)).toBeUndefined();
+      expect(
+        pnpmVersionFromPackageManager(join(root, "packages", "inner")),
+      ).toBeUndefined();
     } finally {
       cleanup();
     }
