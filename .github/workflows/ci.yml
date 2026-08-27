@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ["24", "26"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: pnpm/action-setup@v6.0.10
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Doctor
+        run: pnpm run doctor
+
+      - name: Install pandoc on Linux (pinned for Markdown lint/format)
+        if: runner.os == 'Linux'
+        run: |
+          wget -q https://github.com/jgm/pandoc/releases/download/3.10.2/pandoc-3.10.2-1.amd64.deb
+          sudo dpkg -i pandoc-3.10.2-1.amd64.deb
+          pandoc --version | head -1
+
+      - name: Install pandoc on Windows (pinned for Markdown lint/format)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = "$env:RUNNER_TEMP\pandoc.zip"
+          $dir = "$env:RUNNER_TEMP\pandoc-3.10.2"
+          Invoke-WebRequest -Uri https://github.com/jgm/pandoc/releases/download/3.10.2/pandoc-3.10.2-windows-x86_64.zip -OutFile $zip
+          Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP"
+          Add-Content $env:GITHUB_PATH $dir
+          & "$dir\pandoc.exe" --version | Select-Object -First 1
+
+      - name: Lint (dogfood: ts-toolkit lints itself)
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+  # The oldest supported pandoc: --eol=lf and the markdown walk must hold
+  # below the doctor threshold too.
+  ci-old-pandoc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: pnpm/action-setup@v6.0.10
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: "26"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install pandoc 3.1
+        run: |
+          wget -q https://github.com/jgm/pandoc/releases/download/3.1/pandoc-3.1-1-amd64.deb
+          sudo dpkg -i pandoc-3.1-1.amd64.deb
+          pandoc --version | head -1
+
+      - name: Doctor (expected to fail below 3.10)
+        run: |
+          set +e
+          pnpm run doctor
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "doctor unexpectedly passed on pandoc 3.1" >&2
+            exit 1
+          fi
+
+      - name: Lint and test (formatting must be stable on pandoc 3.1)
+        run: pnpm lint && pnpm test

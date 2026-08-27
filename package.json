@@ -1,0 +1,47 @@
+{
+  "name": "ts-toolkit",
+  "version": "0.1.0",
+  "description": "Shared TypeScript toolchain: one dependency for lint, format, doctor, and migrate, with biome/tsconfig/vitest presets and ast-grep rules",
+  "type": "module",
+  "license": "MIT",
+  "private": false,
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "ts-toolkit": "bin/ts-toolkit.mjs"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./presets/*": "./presets/*",
+    "./rules/*": "./rules/*",
+    "./tsconfig.base.json": "./presets/tsconfig.base.json"
+  },
+  "files": ["bin", "src", "presets", "rules"],
+  "scripts": {
+    "build": "tsc",
+    "doctor": "ts-toolkit doctor",
+    "format": "ts-toolkit format",
+    "lint": "ts-toolkit lint",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ast-grep/cli": "^0.45.2",
+    "@biomejs/biome": "^2.5.10",
+    "convert-to-arrow": "^1.1.4",
+    "jscpd": "^5.0.16",
+    "npm-run-all2": "^9.0.3",
+    "oxlint": "^1.80.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "tsx": "^4.23.12"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "ts-toolkit": "link:.",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

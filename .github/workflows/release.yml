@@ -1,0 +1,74 @@
+# Release: on tag, publish to npm and push a `dist` branch snapshot.
+#
+# npm is the primary channel (git-tarball deps resist automated semver
+# updates); the `dist` branch is the fallback for git-ref consumption
+# (the pattern proven in-org by type-a-bin's `#dist` usage).
+#
+# Open decision (design doc §4): public npm vs. private registry. The
+# publish job below uses an NPM_TOKEN secret either way; flip
+# `--access` / the registry URL when the decision lands.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: pnpm/action-setup@v6.0.10
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: "26"
+          cache: "pnpm"
+
+      - name: Install pandoc (pinned for Markdown lint/format)
+        run: |
+          wget -q https://github.com/jgm/pandoc/releases/download/3.10.2/pandoc-3.10.2-1-amd64.deb
+          sudo dpkg -i pandoc-3.10.2-1-amd64.deb
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Dogfood gate (build && lint && test through ts-toolkit)
+        run: pnpm build && pnpm lint && pnpm test
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: pnpm/action-setup@v6.0.10
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: "26"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish to npm
+        run: |
+          pnpm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+          pnpm publish --access public --no-git-checks
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  dist-branch:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Push source snapshot to dist branch
+        run: |
+          git config user.name "release-bot"
+          git config user.email "release-bot@users.noreply.github.com"
+          git checkout -B dist
+          git push origin dist --force
