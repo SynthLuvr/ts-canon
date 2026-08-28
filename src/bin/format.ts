@@ -1,4 +1,4 @@
-import { existsSync, statSync } from "node:fs";
+import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import { runPandoc } from "../lib/pandoc-md";
 import type { Step } from "../lib/runner";
@@ -15,15 +15,16 @@ import { resolvePaths } from "./lint";
 type FormatOptions = { paths?: string[] };
 
 /**
- * Arguments for the convert-to-arrow step. A single directory argument is
- * scoped by `sourceGlob` so the codemod's walk cannot leave the source
- * tree (see there for why). Glob arguments pass through untouched, and
- * every other shape — multiple paths, a file, a missing path — keeps the
- * passthrough behavior the tool already had. `undefined` skips the step.
+ * Arguments for the convert-to-arrow step. A lone directory argument is
+ * rescoped by `sourceGlob` so the codemod's walk stays inside the source
+ * tree (see there for why); globs, multiple paths, files, and missing
+ * paths keep the codemod's own passthrough behavior. `undefined` skips
+ * the step.
  */
 const arrowsArgs = (paths: string[], root: string): string[] | undefined => {
   if (paths.length !== 1 || paths[0].includes("*")) return paths;
-  if (!existsSync(root) || !statSync(root).isDirectory()) return paths;
+  const stats = statSync(root, { throwIfNoEntry: false });
+  if (stats === undefined || !stats.isDirectory()) return paths;
   const glob = sourceGlob(root);
   return glob === undefined ? undefined : [glob];
 };

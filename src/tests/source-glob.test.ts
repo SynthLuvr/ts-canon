@@ -40,13 +40,9 @@ describe("sourceGlob", () => {
     try {
       writeFixture(outside, "evil.ts", "const boom = 1;\n");
       writeFixture(root, "src/a.ts", "const a = 1;\n");
-      // A linked directory inside the tree, and a link back out of it —
-      // both must be invisible to the glob.
       symlinkSync(outside, join(root, "linked"));
       symlinkSync(root, join(root, "src", "self"));
       expect(sourceGlob(root)).toBe("{**/*.ts,**/*.tsx}");
-      expect(sourceGlob(root)?.includes("linked")).toBe(false);
-      expect(sourceGlob(root)?.includes("self")).toBe(false);
     } finally {
       cleanup();
       cleanupOutside();
@@ -84,8 +80,7 @@ describe("sourceGlob", () => {
       writeFixture(root, "packages/glv/src/main.ts", "const b = 2;\n");
       writeFixture(root, "packages/glv/karma.conf.ts", "const c = 3;\n");
       const glv = join(root, "packages", "glv");
-      // The argument directory itself is the walk base, so its files are
-      // loose files and only its clean children become roots.
+      // The walk base holds its own files, so they need `*.ts` elements.
       expect(sourceGlob(glv)).toBe("{src/**/*.ts,src/**/*.tsx,*.ts,*.tsx}");
     } finally {
       cleanup();
