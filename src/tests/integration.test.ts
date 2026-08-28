@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, symlinkSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -183,5 +183,84 @@ describe("fixture mini repo", () => {
       }
     },
     600_000,
+  );
+
+  it.skipIf(!pandocAvailable())(
+    "format survives pnpm workspace symlink cycles",
+    async () => {
+      const [root, cleanup] = buildMiniRepo();
+      // A second tree outside the format target: with a bare `.` the
+      // convert-to-arrow walk followed the `linked` symlink below and
+      // rewrote files outside the target tree.
+      const [outside, cleanupOutside] = withTempDir();
+      try {
+        writeFixture(
+          outside,
+          "evil.ts",
+          "function boom(): void {\n  process.exit(1);\n}\n\nexport { boom };\n",
+        );
+        // pnpm-style layout: a hoisted workspace package under
+        // node_modules/.pnpm whose node_modules links back to the root.
+        writeFixture(
+          root,
+          "packages/demo/node_modules/mini-repo/package.json",
+          "{}\n",
+        );
+        writeFixture(
+          root,
+          "packages/demo/src/tool.ts",
+          "const tool = 1;\nexport { tool };\n",
+        );
+        writeFixture(
+          root,
+          "node_modules/.pnpm/node_modules/.hoist-marker.json",
+          "{}\n",
+        );
+        // biome itself follows the `linked` symlink when scanning `.`, so
+        // the fixture opts out — the canary below is about convert-to-arrow.
+        const preset = relative(
+          root,
+          join(packageRoot(), "presets", "biome.preset.json"),
+        );
+        writeFixture(
+          root,
+          "biome.json",
+          `${JSON.stringify(
+            {
+              extends: [preset.replaceAll("\\\\", "/")],
+              vcs: { enabled: false },
+              files: { includes: ["**", "!linked/**"] },
+            },
+            null,
+            2,
+          )}\n`,
+        );
+        symlinkSync(
+          join(root, "packages", "demo"),
+          join(root, "node_modules", ".pnpm", "node_modules", "demo"),
+          "dir",
+        );
+        symlinkSync(
+          root,
+          join(root, "packages", "demo", "node_modules", "app"),
+        );
+        symlinkSync(outside, join(root, "linked"), "dir");
+
+        expect(await runFormat({ paths: [root] })).toBe(0);
+
+        // In-tree sources are converted…
+        const formatted = readFileSync(join(root, "src", "index.ts"), "utf8");
+        expect(formatted).toContain("const greet");
+        expect(formatted).not.toContain("function greet");
+        // …and nothing outside the source roots is touched.
+        expect(readFileSync(join(outside, "evil.ts"), "utf8")).toBe(
+          "function boom(): void {\n  process.exit(1);\n}\n\nexport { boom };\n",
+        );
+      } finally {
+        cleanup();
+        cleanupOutside();
+      }
+    },
+    120_000,
   );
 });

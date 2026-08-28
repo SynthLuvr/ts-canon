@@ -7,6 +7,7 @@ import { oxlintCli, runOxlint, tsgolintExe } from "./lib/oxlint";
 import { findMarkdown, pandocFormat, runPandoc } from "./lib/pandoc-md";
 import { pnpmCommand, pnpmPeersCheck } from "./lib/peer-deps";
 import { packageRoot, resolveBin, runCommand, runSequence } from "./lib/runner";
+import { sourceGlob } from "./lib/source-glob";
 
 export {
   findMarkdown,
@@ -25,6 +26,7 @@ export {
   runOxlint,
   runPandoc,
   runSequence,
+  sourceGlob,
   tsgolintExe,
   USAGE,
 };

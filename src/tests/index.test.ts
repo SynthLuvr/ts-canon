@@ -13,6 +13,7 @@ describe("public API surface", () => {
     expect(typeof canon.runCommand).toBe("function");
     expect(typeof canon.runSequence).toBe("function");
     expect(typeof canon.findMarkdown).toBe("function");
+    expect(typeof canon.sourceGlob).toBe("function");
     expect(typeof canon.pandocFormat).toBe("function");
     expect(typeof canon.pnpmPeersCheck).toBe("function");
     expect(typeof canon.oxlintCli).toBe("function");
