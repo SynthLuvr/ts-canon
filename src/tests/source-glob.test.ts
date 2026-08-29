@@ -51,8 +51,6 @@ describe("sourceGlob", () => {
       symlinkSync(outside, join(root, "linked"));
       symlinkSync(root, join(root, "src", "self"));
       expect(sourceGlob(root)).toBe("{**/*.ts,**/*.tsx}");
-      expect(sourceGlob(root)?.includes("linked")).toBe(false);
-      expect(sourceGlob(root)?.includes("self")).toBe(false);
     } finally {
       cleanup();
       cleanupOutside();
@@ -90,9 +88,8 @@ describe("sourceGlob", () => {
       writeFixture(root, "packages/glv/src/main.ts", "const b = 2;\n");
       writeFixture(root, "packages/glv/karma.conf.ts", "const c = 3;\n");
       const glv = join(root, "packages", "glv");
-      // The argument directory is the walk base; it is dirty (its own
-      // node_modules), so only its clean children become roots and its
-      // direct files stay out of the codemod's scope.
+      // The walk base is itself dirty, so only its clean children become
+      // roots; files directly inside it stay out of the codemod's scope.
       expect(sourceGlob(glv)).toBe("{src/**/*.ts,src/**/*.tsx}");
     } finally {
       cleanup();
