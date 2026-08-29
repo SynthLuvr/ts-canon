@@ -95,7 +95,11 @@ covered by the biome steps.
   cannot work from a real install.
 - `presets/sgconfig.yml` — copy to your repo root to point bare
   `ast-grep scan` and editor integrations at the shipped rules.
-- `rules/` — the four ast-grep rule files (11 rule ids).
+- `rules/` — the four ast-grep rule files (11 rule ids). Every rule
+  ships twice under the same id — a `TypeScript` document for `.ts` and
+  a `Tsx` document for `.tsx` — because ast-grep matches a language’s
+  own file extensions only; without the twins, repos with `.tsx` files
+  would silently escape the rules.
 - Bundled as direct dependencies: biome, oxlint, oxlint-tsgolint,
   `@ast-grep/cli`, convert-to-arrow, jscpd, tsx, npm-run-all2. Peer
   dependency ranges would reintroduce the drift this package exists to

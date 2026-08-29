@@ -6,3 +6,14 @@ rule:
     has:
       kind: export_clause
       stopBy: end
+---
+# The .tsx twin of the rule above; ast-grep matches a language's own file
+# extensions only, so both documents are needed to cover `.ts` and `.tsx`.
+id: no-inline-export
+language: Tsx
+rule:
+  kind: export_statement
+  not:
+    has:
+      kind: export_clause
+      stopBy: end
