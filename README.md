@@ -63,6 +63,14 @@ monorepos can scope a run: `ts-canon lint packages/glv`. `lint --fast`
 skips `pnpm audit` and jscpd. The pnpm steps skip themselves when the
 target has no `pnpm-lock.yaml`.
 
+For a single directory argument, `format` runs its own walk — skipping
+`node_modules`, hidden entries, and symlinks, the same rule the pandoc
+step applies — and hands convert-to-arrow one explicit, brace-anchored
+glob. A bare `.` would be unsafe: the codemod’s `node_modules` negation
+filters results without pruning its walk, and it follows symlinks, so on
+a pnpm workspace whose root is also a workspace dependency the walk
+chases the hoisted link cycle until the process exhausts its heap.
+
 ## What you get
 
 - `presets/biome.preset.json` — the canonical biome config; keep a local
