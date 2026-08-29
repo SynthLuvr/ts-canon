@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { runFormat } from "../bin/format";
 import { resolvePaths, runLint } from "../bin/lint";
 import { pandocVersion } from "../lib/pandoc-md";
-import { packageRoot, resolveBin, runCommand } from "../lib/runner";
+import { packageRoot, runAstGrep } from "../lib/runner";
 import { withTempDir, writeFixture } from "./helpers";
 
 const pandocAvailable = (): boolean => pandocVersion() !== undefined;
@@ -15,10 +15,10 @@ const pandocAvailable = (): boolean => pandocVersion() !== undefined;
  * + no-function-declaration), unbraced-ready single-statement bodies for
  * every strip-braces rule, a `var` (biome useConst), 4-space indentation
  * (biome format), and inline export style already separated. Markdown is
- * generated drifted so pandoc flags it. The `view.tsx` fixture mirrors the
- * same violations as JSX-flavored TypeScript, proving the language twins
- * in each rule file (ast-grep matches a language's own file extensions
- * only) and the .tsx half of every format step.
+ * generated drifted so pandoc flags it. The `view.tsx` fixture mirrors
+ * the same violations as JSX, so the Tsx twin in each rule file
+ * (ast-grep matches a language's own extensions only) and the .tsx half
+ * of every format step are exercised.
  */
 const FIXTURE_SOURCE = `function greet(name: string): string {
     return \`hello \${name}\`;
@@ -126,10 +126,9 @@ describe("resolvePaths", () => {
 
 describe("ast-grep lint rules (package-relative --rule)", () => {
   // One violating source per rule, run against both file extensions. The
-  // .tsx variants carry a JSX element so a match proves the file is
-  // really parsed as Tsx, exercising the language twin in each rule file
-  // (ast-grep matches a language's own extensions only, so a lone
-  // `language: TypeScript` rule would never fire on `bad.tsx`).
+  // .tsx variants carry a JSX element so a match proves the file really
+  // parsed as Tsx: ast-grep matches a language's own extensions only, so
+  // a lone `language: TypeScript` document would never fire on `bad.tsx`.
   const RULE_VIOLATIONS = [
     [
       "no-file-comment",
@@ -139,13 +138,12 @@ describe("ast-grep lint rules (package-relative --rule)", () => {
     ["no-inline-export", "export const b = 2;\n"],
   ] as const;
 
+  const withJsxElement = (source: string): string =>
+    `${source}const el = <div className="x">done</div>;\nexport { el };\n`;
+
   const cases = RULE_VIOLATIONS.flatMap(([id, source]) => [
     [id, "bad.ts", source] as const,
-    [
-      id,
-      "bad.tsx",
-      `${source}const el = <div className="x">done</div>;\nexport { el };\n`,
-    ] as const,
+    [id, "bad.tsx", withJsxElement(source)] as const,
   ]);
 
   it.each(cases)(
@@ -154,20 +152,12 @@ describe("ast-grep lint rules (package-relative --rule)", () => {
       const [dir, cleanup] = withTempDir();
       try {
         const bad = writeFixture(dir, file, source);
-        const code = await runCommand(
-          resolveBin("@ast-grep/cli", "ast-grep"),
-          [
-            "scan",
-            "--rule",
-            join(packageRoot(), "rules", `${id}.yml`),
-            "--error",
-            id,
-            "--globs",
-            "!**/*.d.ts",
-            bad,
-          ],
-          { cwd: dir },
-        );
+        const code = await runAstGrep(id, [bad], dir, [
+          "--error",
+          id,
+          "--globs",
+          "!**/*.d.ts",
+        ]);
         expect(code).toBe(1);
       } finally {
         cleanup();
@@ -184,17 +174,7 @@ describe("ast-grep lint rules (package-relative --rule)", () => {
         "view.tsx",
         'const label = (ok: boolean): string => (ok ? "yes" : "no");\n\nif (label(true)) {\n  console.log(<b>{label(true)}</b>);\n}\n\nexport { label };\n',
       );
-      const code = await runCommand(
-        resolveBin("@ast-grep/cli", "ast-grep"),
-        [
-          "scan",
-          "--rule",
-          join(packageRoot(), "rules", "strip-braces.yml"),
-          "-U",
-          file,
-        ],
-        { cwd: dir },
-      );
+      const code = await runAstGrep("strip-braces", [file], dir, ["-U"]);
       expect(code).toBe(0);
       expect(readFileSync(file, "utf8")).toMatch(
         /if \(label\(true\)\)\n {2}console\.log\(<b>\{label\(true\)\}<\/b>\);/,
@@ -238,7 +218,6 @@ describe("fixture mini repo", () => {
         );
 
         const view = readFileSync(join(root, "src", "view.tsx"), "utf8");
-        expect(view).toContain("const Title");
         expect(view).not.toContain("function Title");
         expect(view).toContain(
           "const Title = ({ name }: { name: string }) => <h1>{name}</h1>;",
