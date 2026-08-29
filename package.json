@@ -1,6 +1,6 @@
 {
   "name": "ts-canon",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Shared TypeScript toolchain: one dependency for lint, format, doctor, and migrate, with biome/tsconfig/vitest presets and ast-grep rules",
   "keywords": [
     "typescript",
@@ -44,7 +44,13 @@
     "./rules/*": "./rules/*",
     "./tsconfig.base.json": "./presets/tsconfig.base.json"
   },
-  "files": ["bin", "src", "presets", "rules", "!src/tests"],
+  "files": [
+    "bin",
+    "src",
+    "presets",
+    "rules",
+    "!src/tests"
+  ],
   "scripts": {
     "build": "tsc",
     "doctor": "ts-canon doctor",
