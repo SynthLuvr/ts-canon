@@ -2,8 +2,19 @@
 # Uses a program-level regex because ast-grep treats comments as trivia, so a
 # `kind: comment` rule cannot be constrained to the start of the file via
 # relational operators (precededBy/followedBy do not see comment nodes).
+#
+# ast-grep matches a language's own file extensions only — a TypeScript
+# rule sees `.ts` files, a Tsx rule sees `.tsx` — so every rule ships
+# twice under the same id, once per language. Repos with `.tsx` files
+# would silently escape the rule without the twin.
 id: no-file-comment
 language: TypeScript
+rule:
+  kind: program
+  regex: '^(//|/\*)'
+---
+id: no-file-comment
+language: Tsx
 rule:
   kind: program
   regex: '^(//|/\*)'

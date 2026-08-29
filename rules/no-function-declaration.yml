@@ -10,3 +10,14 @@ rule:
     - not:
         follows:
           kind: function_signature
+---
+# The .tsx twin of the rule above; ast-grep matches a language's own file
+# extensions only, so both documents are needed to cover `.ts` and `.tsx`.
+id: no-function-declaration
+language: Tsx
+rule:
+  all:
+    - kind: function_declaration
+    - not:
+        follows:
+          kind: function_signature

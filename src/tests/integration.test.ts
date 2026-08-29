@@ -15,7 +15,10 @@ const pandocAvailable = (): boolean => pandocVersion() !== undefined;
  * + no-function-declaration), unbraced-ready single-statement bodies for
  * every strip-braces rule, a `var` (biome useConst), 4-space indentation
  * (biome format), and inline export style already separated. Markdown is
- * generated drifted so pandoc flags it.
+ * generated drifted so pandoc flags it. The `view.tsx` fixture mirrors the
+ * same violations as JSX-flavored TypeScript, proving the language twins
+ * in each rule file (ast-grep matches a language's own file extensions
+ * only) and the .tsx half of every format step.
  */
 const FIXTURE_SOURCE = `function greet(name: string): string {
     return \`hello \${name}\`;
@@ -55,6 +58,19 @@ do {
 export { greet };
 `;
 
+const FIXTURE_TSX_SOURCE = `function Title({ name }: { name: string }) {
+    return <h1>{name}</h1>;
+}
+
+const ready = (ok: boolean): boolean => ok;
+
+if (ready(true)) {
+    console.log(<Title name="done" />);
+}
+
+export { Title };
+`;
+
 const buildMiniRepo = (): [string, () => void] => {
   const [root, cleanup] = withTempDir();
   writeFixture(
@@ -82,6 +98,7 @@ const buildMiniRepo = (): [string, () => void] => {
     )}\n`,
   );
   writeFixture(root, "src/index.ts", FIXTURE_SOURCE);
+  writeFixture(root, "src/view.tsx", FIXTURE_TSX_SOURCE);
   writeFixture(root, "README.md", "#   Mini repo\n\nSome  text   \n");
   const tsconfigBase = relative(
     root,
@@ -108,19 +125,35 @@ describe("resolvePaths", () => {
 });
 
 describe("ast-grep lint rules (package-relative --rule)", () => {
-  it.each([
+  // One violating source per rule, run against both file extensions. The
+  // .tsx variants carry a JSX element so a match proves the file is
+  // really parsed as Tsx, exercising the language twin in each rule file
+  // (ast-grep matches a language's own extensions only, so a lone
+  // `language: TypeScript` rule would never fire on `bad.tsx`).
+  const RULE_VIOLATIONS = [
     [
       "no-file-comment",
       "// leading file comment\nconst a = 1;\nexport { a };\n",
     ],
     ["no-function-declaration", "function foo(): void {}\nexport { foo };\n"],
     ["no-inline-export", "export const b = 2;\n"],
-  ])(
-    "%s fails on a violating file",
-    async (id, source) => {
+  ] as const;
+
+  const cases = RULE_VIOLATIONS.flatMap(([id, source]) => [
+    [id, "bad.ts", source] as const,
+    [
+      id,
+      "bad.tsx",
+      `${source}const el = <div className="x">done</div>;\nexport { el };\n`,
+    ] as const,
+  ]);
+
+  it.each(cases)(
+    "%s fails on a violating %s",
+    async (id, file, source) => {
       const [dir, cleanup] = withTempDir();
       try {
-        const bad = writeFixture(dir, "bad.ts", source);
+        const bad = writeFixture(dir, file, source);
         const code = await runCommand(
           resolveBin("@ast-grep/cli", "ast-grep"),
           [
@@ -142,6 +175,34 @@ describe("ast-grep lint rules (package-relative --rule)", () => {
     },
     60_000,
   );
+
+  it("strip-braces strips single-statement braces in a .tsx file", async () => {
+    const [dir, cleanup] = withTempDir();
+    try {
+      const file = writeFixture(
+        dir,
+        "view.tsx",
+        'const label = (ok: boolean): string => (ok ? "yes" : "no");\n\nif (label(true)) {\n  console.log(<b>{label(true)}</b>);\n}\n\nexport { label };\n',
+      );
+      const code = await runCommand(
+        resolveBin("@ast-grep/cli", "ast-grep"),
+        [
+          "scan",
+          "--rule",
+          join(packageRoot(), "rules", "strip-braces.yml"),
+          "-U",
+          file,
+        ],
+        { cwd: dir },
+      );
+      expect(code).toBe(0);
+      expect(readFileSync(file, "utf8")).toMatch(
+        /if \(label\(true\)\)\n {2}console\.log\(<b>\{label\(true\)\}<\/b>\);/,
+      );
+    } finally {
+      cleanup();
+    }
+  }, 60_000);
 });
 
 describe("fixture mini repo", () => {
@@ -174,6 +235,16 @@ describe("fixture mini repo", () => {
         expect(formatted).toMatch(/do total \+= 1;\nwhile \(total < 0\);/);
         expect(readFileSync(join(root, "README.md"), "utf8")).toBe(
           "# Mini repo\n\nSome text\n",
+        );
+
+        const view = readFileSync(join(root, "src", "view.tsx"), "utf8");
+        expect(view).toContain("const Title");
+        expect(view).not.toContain("function Title");
+        expect(view).toContain(
+          "const Title = ({ name }: { name: string }) => <h1>{name}</h1>;",
+        );
+        expect(view).toMatch(
+          /if \(ready\(true\)\) console\.log\(<Title name="done" \/>\);/,
         );
 
         // Full lint (jscpd included; peer-deps/audit skip without a lockfile).
