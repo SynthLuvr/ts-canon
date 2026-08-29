@@ -71,6 +71,15 @@ filters results without pruning its walk, and it follows symlinks, so on
 a pnpm workspace whose root is also a workspace dependency the walk
 chases the hoisted link cycle until the process exhausts its heap.
 
+Every glob element is `**`-anchored at a `node_modules`-free directory:
+the tool’s globber prunes the descent only for `**` patterns, so a
+trailing `*.ts` segment or a literal file path would make it scan that
+element’s entire base subtree anyway. TypeScript files sitting directly
+in a directory that holds a `node_modules` (a workspace root’s
+`vitest.config.ts`) are therefore out of the codemod’s scope — the
+canonical per-step scripts never covered them either — and remain
+covered by the biome steps.
+
 ## What you get
 
 - `presets/biome.preset.json` — the canonical biome config; keep a local

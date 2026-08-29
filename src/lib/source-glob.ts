@@ -1,92 +1,97 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
+/**
+ * Directory entries that mark a subtree as package-manager territory: the
+ * convert-to-arrow walk must never descend into them, because that is
+ * where pnpm keeps the workspace symlinks that can cycle back to the repo
+ * root.
+ */
+const SKIP_DIRS = new Set(["node_modules"]);
+
+/** Extensions the convert-to-arrow codemod applies to. */
 const TS_EXTENSIONS = [".ts", ".tsx"] as const;
 
-const SKIP_DIR = "node_modules";
+/**
+ * Result of scoping one directory. A directory is *clean* when neither it
+ * nor anything beneath it holds a `SKIP_DIRS` entry; clean directories
+ * collapse into their maximal clean ancestor, dirty ones contribute
+ * whatever their clean children produced.
+ */
+type Scoped = { clean: boolean; roots: string[] };
 
-const isTypeScript = (name: string): boolean =>
-  TS_EXTENSIONS.some((extension) => name.endsWith(extension));
-
-/** Glob prefix for `dir` relative to the walk base; the base (`.`) has none. */
-const prefix = (dir: string): string => (dir === "." ? "" : `${dir}/`);
-
+/** Converts path separators to `/` so the glob is portable. */
 const toPosix = (value: string): string => value.replaceAll("\\", "/");
 
-const recursiveElements = (dir: string): string[] =>
-  TS_EXTENSIONS.map((extension) => `${prefix(dir)}**/*${extension}`);
-
-const directElements = (dir: string): string[] =>
-  TS_EXTENSIONS.map((extension) => `${prefix(dir)}*${extension}`);
-
 /**
- * Glob elements for a directory that no single `**` pattern can cover:
- * `recursive` lists its clean subtrees, `direct` the files of the dirty
- * directories themselves.
+ * Post-order walk of `absDir` collecting the maximal clean directories as
+ * paths relative to the walk base. Dot entries and symlinks are skipped:
+ * pnpm workspace links can form cycles that must not be followed — the
+ * same rule `findMarkdown` already applies to the pandoc walk.
  */
-type Scope = { recursive: string[]; direct: string[] };
-
-/**
- * Post-order walk of `absDir`, collecting glob elements for its TypeScript
- * files. Returns `null` for a clean directory — no `node_modules` at or
- * below it — so its nearest dirty ancestor covers the subtree with one
- * `**` element instead. A dirty directory's own files need `*.ts` elements
- * because `**` would reach into the `node_modules` beneath it.
- * `node_modules` is never entered, and symlinks and hidden entries are
- * skipped: pnpm workspace links can cycle back to the workspace root, the
- * rule `findMarkdown` applies to the pandoc walk. Entries are sorted so
- * the glob is stable across readdir orders.
- */
-const scopeDirectory = (absDir: string, relDir: string): Scope | null => {
-  const scope: Scope = { recursive: [], direct: [] };
+const scopeDirectory = (absDir: string, relDir: string): Scoped => {
+  const children: { rel: string; scoped: Scoped }[] = [];
   let dirty = false;
-  let hasTypeScript = false;
 
   const entries = readdirSync(absDir, { withFileTypes: true });
   entries.sort((a, b) => a.name.localeCompare(b.name));
   for (const entry of entries) {
     if (entry.isSymbolicLink() || entry.name.startsWith(".")) continue;
-    if (entry.name === SKIP_DIR) {
+    if (SKIP_DIRS.has(entry.name)) {
       dirty = true;
       continue;
     }
-    if (!entry.isDirectory()) {
-      if (isTypeScript(entry.name)) hasTypeScript = true;
-      continue;
-    }
-    const rel = toPosix(join(relDir, entry.name));
-    const child = scopeDirectory(join(absDir, entry.name), rel);
-    if (child === null) scope.recursive.push(...recursiveElements(rel));
-    else {
-      dirty = true;
-      scope.recursive.push(...child.recursive);
-      scope.direct.push(...child.direct);
-    }
+    if (!entry.isDirectory()) continue;
+    children.push({
+      rel: toPosix(join(relDir, entry.name)),
+      scoped: scopeDirectory(
+        join(absDir, entry.name),
+        join(relDir, entry.name),
+      ),
+    });
   }
 
-  if (!dirty) return null;
-  if (hasTypeScript) scope.direct.push(...directElements(toPosix(relDir)));
-  return scope;
+  const clean = !dirty && children.every((child) => child.scoped.clean);
+  if (clean) return { clean: true, roots: [toPosix(relDir)] };
+
+  const scoped: Scoped = { clean: false, roots: [] };
+  for (const child of children)
+    if (child.scoped.clean) scoped.roots.push(child.rel);
+    else scoped.roots.push(...child.scoped.roots);
+
+  return scoped;
 };
 
 /**
- * The single glob argument that hands convert-to-arrow every TypeScript
- * file under `root` while keeping its walk inside the source tree. A bare
- * `.` cannot: the codemod's node_modules negation filters results without
- * pruning the traversal, and it follows symlinks, so on a pnpm workspace
- * whose root is also a workspace dependency the walk chases the hoisted
- * link cycle through the whole `.pnpm` store on every lap until the heap
- * is gone. Elements stay brace-free because ts-morph's matcher expands
- * one outer alternation but not nested braces. Returns `undefined` when
- * there is nothing to convert.
+ * Builds the single glob argument that hands convert-to-arrow every
+ * TypeScript file under `root` without letting its own walk descend into
+ * `node_modules` or a symlink. A bare `.` does not do that: the tool's
+ * node_modules negation filters results but does not prune the
+ * traversal, and it follows symlinks, so on a pnpm workspace whose root is
+ * also a workspace dependency the walk chases the hoisted link cycle —
+ * through the whole `.pnpm` store on every lap — until the heap is gone.
+ *
+ * Two properties of the tool's globber dictate the shape of the result:
+ * only `**`-anchored elements prune the descent (a trailing `*.ts`
+ * segment or a literal file path makes it scan the element's whole base
+ * subtree), and nested braces are not expanded. So every element is a
+ * doublestar glob rooted at a clean directory, brace-free, joined in one
+ * outer alternation. TypeScript files sitting directly in a dirty
+ * directory (a workspace root's `vitest.config.ts`) are deliberately out
+ * of scope — the canonical toolchain never codemodded them either — and
+ * stay covered by the biome steps. Returns `undefined` when no clean
+ * root exists.
  */
 const sourceGlob = (root: string): string | undefined => {
-  const scope = scopeDirectory(root, ".");
-  const elements =
-    scope === null
-      ? recursiveElements(".")
-      : [...scope.recursive, ...scope.direct];
-  return elements.length === 0 ? undefined : `{${elements.join(",")}}`;
+  const { roots } = scopeDirectory(root, ".");
+  const elements = roots.flatMap((dir) =>
+    TS_EXTENSIONS.map((extension) => {
+      const base = dir === "." ? "**" : `${dir}/**`;
+      return `${base}/*${extension}`;
+    }),
+  );
+  if (elements.length === 0) return undefined;
+  return elements.length === 1 ? elements[0] : `{${elements.join(",")}}`;
 };
 
 export { sourceGlob };
