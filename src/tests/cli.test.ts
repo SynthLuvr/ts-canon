@@ -54,17 +54,75 @@ describe("main: migrate options", () => {
         await mainMocked(["migrate", "--dry-run", "--version", "^0.2.0"]),
       ).toBe(0);
       expect(runMigrate).toHaveBeenCalledWith({
+        root: undefined,
         dryRun: true,
         version: "^0.2.0",
       });
 
       expect(await mainMocked(["migrate", "--version=github:u/r#abc"])).toBe(0);
       expect(runMigrate).toHaveBeenLastCalledWith({
+        root: undefined,
         dryRun: false,
         version: "github:u/r#abc",
       });
     } finally {
       log.mockRestore();
+      vi.doUnmock("../bin/migrate");
+      vi.resetModules();
+    }
+  });
+
+  it("forwards the path argument as the repo to migrate", async () => {
+    vi.resetModules();
+    vi.doMock("../bin/migrate", () => ({
+      runMigrate: vi.fn().mockReturnValue(0),
+    }));
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      const { main: mainMocked } = await import("../bin/cli");
+      const { runMigrate } = await import("../bin/migrate");
+
+      expect(await mainMocked(["migrate", "packages/app"])).toBe(0);
+      expect(runMigrate).toHaveBeenCalledWith({
+        root: "packages/app",
+        dryRun: false,
+        version: undefined,
+      });
+
+      expect(
+        await mainMocked(["migrate", "--version", "^1", "packages/app"]),
+      ).toBe(0);
+      expect(runMigrate).toHaveBeenLastCalledWith({
+        root: "packages/app",
+        dryRun: false,
+        version: "^1",
+      });
+    } finally {
+      log.mockRestore();
+      vi.doUnmock("../bin/migrate");
+      vi.resetModules();
+    }
+  });
+
+  it("rejects more than one path", async () => {
+    vi.resetModules();
+    vi.doMock("../bin/migrate", () => ({
+      runMigrate: vi.fn().mockReturnValue(0),
+    }));
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    try {
+      const { main: mainMocked } = await import("../bin/cli");
+      const { runMigrate } = await import("../bin/migrate");
+
+      expect(await mainMocked(["migrate", "packages/a", "packages/b"])).toBe(2);
+      expect(error).toHaveBeenCalledWith(
+        "migrate: expected at most one path\n",
+      );
+      expect(runMigrate).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
       vi.doUnmock("../bin/migrate");
       vi.resetModules();
     }

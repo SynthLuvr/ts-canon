@@ -9,7 +9,7 @@ commands:
   lint      run all lint checks (biome, oxlint, ast-grep, pandoc, peers, audit, jscpd)
   format    run all formatters (arrows, braces, biome, biome check, markdown)
   doctor    verify pandoc, node, pnpm, and bundled tool versions
-  migrate   convert a consumer repo to ts-canon
+  migrate   convert a consumer repo to ts-canon (one path, default .)
 
 options:
   --fast             lint: skip pnpm audit and jscpd
@@ -36,6 +36,24 @@ const takeOption = (
   }
   const inline = args.find((arg) => arg.startsWith(`${flag}=`));
   return inline === undefined ? {} : { value: inline.slice(flag.length + 1) };
+};
+
+/**
+ * Positional arguments of `args`, minus the value of any `--name value`
+ * option in `valueOptions`: without that, `migrate --version 1.2.3` reads
+ * `1.2.3` as the path.
+ */
+const positionals = (args: string[], valueOptions: string[]): string[] => {
+  const result: string[] = [];
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+    if (!arg.startsWith("--")) {
+      result.push(arg);
+      continue;
+    }
+    if (valueOptions.includes(arg.slice(2))) index++;
+  }
+  return result;
 };
 
 /**
@@ -72,7 +90,17 @@ const main = async (argv: string[]): Promise<number> => {
         console.error(USAGE);
         return 2;
       }
-      return runMigrate({ dryRun: flags.includes("--dry-run"), version });
+      const targets = positionals(rest, ["version"]);
+      if (targets.length > 1) {
+        console.error("migrate: expected at most one path\n");
+        console.error(USAGE);
+        return 2;
+      }
+      return runMigrate({
+        root: targets[0],
+        dryRun: flags.includes("--dry-run"),
+        version,
+      });
     }
     default:
       console.error(`unknown command: ${command}\n`);

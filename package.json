@@ -35,7 +35,6 @@
     "ts-canon": "bin/ts-canon.mjs"
   },
   "exports": {
-    ".": "./src/index.ts",
     "./presets/vitest": {
       "types": "./presets/vitest.d.mts",
       "default": "./presets/vitest.mjs"

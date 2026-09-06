@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
+import { main } from "../bin/cli";
 import { isRegistrySpec, runMigrate } from "../bin/migrate";
 import { withTempDir, writeFixture } from "./helpers";
 
@@ -305,5 +306,48 @@ describe("isRegistrySpec", () => {
     expect(isRegistrySpec("link:.")).toBe(false);
     expect(isRegistrySpec("file:../ts-canon")).toBe(false);
     expect(isRegistrySpec("workspace:*")).toBe(false);
+  });
+});
+
+describe("migrate through the CLI", () => {
+  it("migrates the package named by the path, not the cwd", async () => {
+    const [root, cleanup] = withTempDir();
+    const cwd = process.cwd();
+    try {
+      writeFixture(
+        root,
+        "package.json",
+        JSON.stringify({ name: "workspace", scripts: { "lint:biome": "x" } }),
+      );
+      writeFixture(
+        root,
+        "packages/app/package.json",
+        JSON.stringify({ name: "app", scripts: { "lint:biome": "x" } }),
+      );
+      process.chdir(root);
+
+      const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      try {
+        expect(await main(["migrate", "packages/app"])).toBe(0);
+      } finally {
+        log.mockRestore();
+      }
+
+      const app = JSON.parse(
+        readFileSync(join(root, "packages", "app", "package.json"), "utf8"),
+      ) as { scripts: Record<string, string> };
+      expect(app.scripts.lint).toBe("ts-canon lint");
+      expect(app.scripts["lint:biome"]).toBeUndefined();
+
+      // The workspace root must be untouched.
+      const workspace = JSON.parse(
+        readFileSync(join(root, "package.json"), "utf8"),
+      ) as { scripts: Record<string, string> };
+      expect(workspace.scripts["lint:biome"]).toBe("x");
+      expect(workspace.scripts.lint).toBeUndefined();
+    } finally {
+      process.chdir(cwd);
+      cleanup();
+    }
   });
 });
