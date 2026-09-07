@@ -313,6 +313,7 @@ describe("migrate through the CLI", () => {
   it("migrates the package named by the path, not the cwd", async () => {
     const [root, cleanup] = withTempDir();
     const cwd = process.cwd();
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     try {
       writeFixture(
         root,
@@ -326,12 +327,7 @@ describe("migrate through the CLI", () => {
       );
       process.chdir(root);
 
-      const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
-      try {
-        expect(await main(["migrate", "packages/app"])).toBe(0);
-      } finally {
-        log.mockRestore();
-      }
+      expect(await main(["migrate", "packages/app"])).toBe(0);
 
       const app = JSON.parse(
         readFileSync(join(root, "packages", "app", "package.json"), "utf8"),
@@ -346,6 +342,7 @@ describe("migrate through the CLI", () => {
       expect(workspace.scripts["lint:biome"]).toBe("x");
       expect(workspace.scripts.lint).toBeUndefined();
     } finally {
+      log.mockRestore();
       process.chdir(cwd);
       cleanup();
     }

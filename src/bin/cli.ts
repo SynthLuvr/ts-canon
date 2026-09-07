@@ -18,6 +18,13 @@ options:
                      existing non-registry spec is kept)
   --help             show this help`;
 
+/** Prints `message` and usage, returning the CLI's error exit code. */
+const usageError = (message: string): number => {
+  console.error(message);
+  console.error(USAGE);
+  return 2;
+};
+
 /**
  * Reads `--name value` or `--name=value` from `args`. A bare `--name` —
  * missing or swallowed by the next `--flag` — is flagged `missingValue`.
@@ -47,11 +54,8 @@ const positionals = (args: string[], valueOptions: string[]): string[] => {
   const result: string[] = [];
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
-    if (!arg.startsWith("--")) {
-      result.push(arg);
-      continue;
-    }
-    if (valueOptions.includes(arg.slice(2))) index++;
+    if (!arg.startsWith("--")) result.push(arg);
+    else if (valueOptions.includes(arg.slice(2))) index++;
   }
   return result;
 };
@@ -85,17 +89,11 @@ const main = async (argv: string[]): Promise<number> => {
       return runDoctor();
     case "migrate": {
       const { value: version, missingValue } = takeOption(rest, "version");
-      if (missingValue) {
-        console.error("migrate: --version requires a value\n");
-        console.error(USAGE);
-        return 2;
-      }
+      if (missingValue)
+        return usageError("migrate: --version requires a value\n");
       const targets = positionals(rest, ["version"]);
-      if (targets.length > 1) {
-        console.error("migrate: expected at most one path\n");
-        console.error(USAGE);
-        return 2;
-      }
+      if (targets.length > 1)
+        return usageError("migrate: expected at most one path\n");
       return runMigrate({
         root: targets[0],
         dryRun: flags.includes("--dry-run"),
@@ -103,9 +101,7 @@ const main = async (argv: string[]): Promise<number> => {
       });
     }
     default:
-      console.error(`unknown command: ${command}\n`);
-      console.error(USAGE);
-      return 2;
+      return usageError(`unknown command: ${command}\n`);
   }
 };
 

@@ -7,14 +7,10 @@ import { packageRoot } from "../lib/runner";
 const WILDCARD_DIRS = ["presets", "rules"];
 
 /** Every string target in the `exports` map, condition branches included. */
-const collectTargets = (value: unknown, acc: string[] = []): string[] => {
-  if (typeof value === "string") {
-    acc.push(value);
-    return acc;
-  }
-  if (value !== null && typeof value === "object")
-    for (const nested of Object.values(value)) collectTargets(nested, acc);
-  return acc;
+const collectTargets = (value: unknown): string[] => {
+  if (typeof value === "string") return [value];
+  if (value === null || typeof value !== "object") return [];
+  return Object.values(value).flatMap(collectTargets);
 };
 
 /**
@@ -24,16 +20,11 @@ const collectTargets = (value: unknown, acc: string[] = []): string[] => {
 const isUnloadableSource = (file: string): boolean =>
   /\.tsx?$/.test(file) && !file.endsWith(".d.ts");
 
-const exportsMap = (): unknown => {
-  const manifest = join(packageRoot(), "package.json");
-  const parsed = JSON.parse(readFileSync(manifest, "utf8")) as {
-    exports: unknown;
-  };
-  return parsed.exports;
-};
-
 describe("package exports map", () => {
-  const targets = collectTargets(exportsMap());
+  const manifest = JSON.parse(
+    readFileSync(join(packageRoot(), "package.json"), "utf8"),
+  ) as { exports: unknown };
+  const targets = collectTargets(manifest.exports);
 
   it("never points a subpath at TypeScript source", () => {
     expect(targets.filter(isUnloadableSource)).toEqual([]);
