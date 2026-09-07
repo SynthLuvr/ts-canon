@@ -9,7 +9,7 @@ commands:
   lint      run all lint checks (biome, oxlint, ast-grep, pandoc, peers, audit, jscpd)
   format    run all formatters (arrows, braces, biome, biome check, markdown)
   doctor    verify pandoc, node, pnpm, and bundled tool versions
-  migrate   convert a consumer repo to ts-canon
+  migrate   convert a consumer repo to ts-canon (one path, default .)
 
 options:
   --fast             lint: skip pnpm audit and jscpd
@@ -17,6 +17,13 @@ options:
   --version <spec>   migrate: ts-canon dependency spec (default ^0; an
                      existing non-registry spec is kept)
   --help             show this help`;
+
+/** Prints `message` and usage, returning the CLI's error exit code. */
+const usageError = (message: string): number => {
+  console.error(message);
+  console.error(USAGE);
+  return 2;
+};
 
 /**
  * Reads `--name value` or `--name=value` from `args`. A bare `--name` —
@@ -36,6 +43,21 @@ const takeOption = (
   }
   const inline = args.find((arg) => arg.startsWith(`${flag}=`));
   return inline === undefined ? {} : { value: inline.slice(flag.length + 1) };
+};
+
+/**
+ * Positional arguments of `args`, minus the value of any `--name value`
+ * option in `valueOptions`: without that, `migrate --version 1.2.3` reads
+ * `1.2.3` as the path.
+ */
+const positionals = (args: string[], valueOptions: string[]): string[] => {
+  const result: string[] = [];
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+    if (!arg.startsWith("--")) result.push(arg);
+    else if (valueOptions.includes(arg.slice(2))) index++;
+  }
+  return result;
 };
 
 /**
@@ -67,17 +89,19 @@ const main = async (argv: string[]): Promise<number> => {
       return runDoctor();
     case "migrate": {
       const { value: version, missingValue } = takeOption(rest, "version");
-      if (missingValue) {
-        console.error("migrate: --version requires a value\n");
-        console.error(USAGE);
-        return 2;
-      }
-      return runMigrate({ dryRun: flags.includes("--dry-run"), version });
+      if (missingValue)
+        return usageError("migrate: --version requires a value\n");
+      const targets = positionals(rest, ["version"]);
+      if (targets.length > 1)
+        return usageError("migrate: expected at most one path\n");
+      return runMigrate({
+        root: targets[0],
+        dryRun: flags.includes("--dry-run"),
+        version,
+      });
     }
     default:
-      console.error(`unknown command: ${command}\n`);
-      console.error(USAGE);
-      return 2;
+      return usageError(`unknown command: ${command}\n`);
   }
 };
 
