@@ -61,7 +61,9 @@ keeps that spec intact.
 Both `lint` and `format` accept path arguments (default `.`), so
 monorepos can scope a run: `ts-canon lint packages/glv`. `lint --fast`
 skips `pnpm audit` and jscpd. The pnpm steps skip themselves when the
-target has no `pnpm-lock.yaml`.
+target has no `pnpm-lock.yaml`. The convert-to-arrow format step skips
+itself when the target has no `tsconfig.json`, which the codemod
+requires.
 
 For a single directory argument, `format` runs its own walk — skipping
 `node_modules`, hidden entries, and symlinks, the same rule the pandoc

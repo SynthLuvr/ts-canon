@@ -1,5 +1,5 @@
-import { statSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { runPandoc } from "../lib/pandoc-md";
 import type { Step } from "../lib/runner";
 import {
@@ -10,7 +10,7 @@ import {
   runSequence,
 } from "../lib/runner";
 import { sourceGlob } from "../lib/source-glob";
-import { resolvePaths } from "./lint";
+import { resolvePaths, rootFor } from "./lint";
 
 type FormatOptions = { paths?: string[] };
 
@@ -34,13 +34,21 @@ const arrowsArgs = (paths: string[], root: string): string[] | undefined => {
  * braces -> biome format -> biome check -> markdown. Each step's output is
  * the next step's input, so the order matters (`biome check` must run after
  * `biome format` to apply lint auto-fixes to freshly formatted code).
+ * convert-to-arrow skips itself when the target has no `tsconfig.json` —
+ * the codemod resolves one from the working directory unconditionally and
+ * crashes without it.
  */
 const runFormat = async (options: FormatOptions = {}): Promise<number> => {
   const paths = resolvePaths(options.paths);
-  const root = resolve(paths[0] ?? ".");
+  const root = rootFor(paths[0] ?? ".");
 
-  const steps: Step[] = [
-    {
+  const hasTsconfig = existsSync(join(root, "tsconfig.json"));
+  if (!hasTsconfig)
+    console.log("> skipped convert-to-arrow (no tsconfig.json)");
+
+  const steps: Step[] = [];
+  if (hasTsconfig)
+    steps.push({
       name: "convert-to-arrow",
       run: () => {
         const args = arrowsArgs(paths, root);
@@ -54,7 +62,8 @@ const runFormat = async (options: FormatOptions = {}): Promise<number> => {
           { cwd: root },
         );
       },
-    },
+    });
+  steps.push(
     {
       name: "strip-braces",
       run: () => runAstGrep("strip-braces", paths, root, ["-U"]),
@@ -68,7 +77,7 @@ const runFormat = async (options: FormatOptions = {}): Promise<number> => {
       run: () => runBiome(["check", "--write"], paths, root),
     },
     { name: "pandoc", run: () => Promise.resolve(runPandoc(root, "write")) },
-  ];
+  );
 
   return runSequence(steps);
 };
