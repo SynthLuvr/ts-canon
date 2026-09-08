@@ -1,9 +1,9 @@
-import { readFileSync, symlinkSync } from "node:fs";
-import { join, relative } from "node:path";
+import { readFileSync, rmSync, symlinkSync } from "node:fs";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { runFormat } from "../bin/format";
-import { resolvePaths, runLint } from "../bin/lint";
+import { resolvePaths, rootFor, runLint } from "../bin/lint";
 import { pandocVersion } from "../lib/pandoc-md";
 import { packageRoot, runAstGrep } from "../lib/runner";
 import { withTempDir, writeFixture } from "./helpers";
@@ -117,10 +117,22 @@ const buildMiniRepo = (): [string, () => void] => {
 };
 
 describe("resolvePaths", () => {
-  it("defaults to . and keeps explicit paths", () => {
-    expect(resolvePaths()).toEqual(["."]);
-    expect(resolvePaths([])).toEqual(["."]);
-    expect(resolvePaths(["src", "lib"])).toEqual(["src", "lib"]);
+  it("defaults to . and resolves explicit paths from the caller", () => {
+    expect(resolvePaths()).toEqual([resolve(".")]);
+    expect(resolvePaths([])).toEqual([resolve(".")]);
+    expect(resolvePaths(["src", "lib"])).toEqual([
+      resolve("src"),
+      resolve("lib"),
+    ]);
+  });
+});
+
+describe("rootFor", () => {
+  it("spawns glob arguments from their literal prefix directory", () => {
+    const src = join(packageRoot(), "src");
+    expect(rootFor(src)).toBe(src);
+    expect(rootFor(join(src, "lib", "**", "*.ts"))).toBe(join(src, "lib"));
+    expect(rootFor("src/**/*.ts")).toBe("src");
   });
 });
 
@@ -228,6 +240,53 @@ describe("fixture mini repo", () => {
 
         // Full lint (jscpd included; peer-deps/audit skip without a lockfile).
         expect(await runLint({ paths: [root] })).toBe(0);
+      } finally {
+        cleanup();
+      }
+    },
+    600_000,
+  );
+
+  it.skipIf(!pandocAvailable())(
+    "lint and format scope relative paths from the caller's directory",
+    async () => {
+      const [root, cleanup] = buildMiniRepo();
+      const original = process.cwd();
+      // From the fixture's parent, the way a monorepo scopes a run — the
+      // tools must see the argument as given by the caller, not re-based
+      // onto the target directory itself.
+      process.chdir(dirname(root));
+      try {
+        const target = basename(root);
+        expect(await runLint({ paths: [target], fast: true })).not.toBe(0);
+        expect(await runFormat({ paths: [target] })).toBe(0);
+        expect(readFileSync(join(root, "src", "index.ts"), "utf8")).toContain(
+          "const greet",
+        );
+        expect(await runLint({ paths: [target] })).toBe(0);
+      } finally {
+        process.chdir(original);
+        cleanup();
+      }
+    },
+    600_000,
+  );
+
+  it.skipIf(!pandocAvailable())(
+    "format skips convert-to-arrow without a tsconfig.json",
+    async () => {
+      const [root, cleanup] = buildMiniRepo();
+      // The codemod resolves <cwd>/tsconfig.json unconditionally and
+      // crashes when it is missing; the step must skip, not take the
+      // sequence down with a raw third-party stack.
+      rmSync(join(root, "tsconfig.json"));
+      try {
+        expect(await runFormat({ paths: [root] })).toBe(0);
+        // The later steps still ran: biome reformatted the 4-space source…
+        const formatted = readFileSync(join(root, "src", "index.ts"), "utf8");
+        expect(formatted).toContain("  return `hello ${name}`;");
+        // …but the codemod never ran, so the declaration stays a function.
+        expect(formatted).toContain("function greet");
       } finally {
         cleanup();
       }

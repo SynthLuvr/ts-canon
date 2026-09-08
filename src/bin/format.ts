@@ -1,5 +1,5 @@
-import { statSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { runPandoc } from "../lib/pandoc-md";
 import type { Step } from "../lib/runner";
 import {
@@ -10,7 +10,7 @@ import {
   runSequence,
 } from "../lib/runner";
 import { sourceGlob } from "../lib/source-glob";
-import { resolvePaths } from "./lint";
+import { resolvePaths, rootFor } from "./lint";
 
 type FormatOptions = { paths?: string[] };
 
@@ -29,32 +29,39 @@ const arrowsArgs = (paths: string[], root: string): string[] | undefined => {
   return glob === undefined ? undefined : [glob];
 };
 
+const convertToArrowStep = (paths: string[], root: string): Step => ({
+  name: "convert-to-arrow",
+  run: () => {
+    const args = arrowsArgs(paths, root);
+    if (args === undefined) {
+      console.log("(no TypeScript files found — nothing to convert)");
+      return Promise.resolve(0);
+    }
+    const bin = resolveBin("convert-to-arrow", "convert-to-arrow");
+    return runCommand(bin, args, { cwd: root });
+  },
+});
+
 /**
  * Runs every formatter from the canonical toolchain, in order: arrows ->
  * braces -> biome format -> biome check -> markdown. Each step's output is
  * the next step's input, so the order matters (`biome check` must run after
  * `biome format` to apply lint auto-fixes to freshly formatted code).
+ * convert-to-arrow skips itself when the target has no `tsconfig.json` —
+ * the codemod resolves one from the working directory unconditionally and
+ * crashes without it.
  */
 const runFormat = async (options: FormatOptions = {}): Promise<number> => {
   const paths = resolvePaths(options.paths);
-  const root = resolve(paths[0] ?? ".");
+  const root = rootFor(paths[0]);
 
-  const steps: Step[] = [
-    {
-      name: "convert-to-arrow",
-      run: () => {
-        const args = arrowsArgs(paths, root);
-        if (args === undefined) {
-          console.log("(no TypeScript files found — nothing to convert)");
-          return Promise.resolve(0);
-        }
-        return runCommand(
-          resolveBin("convert-to-arrow", "convert-to-arrow"),
-          args,
-          { cwd: root },
-        );
-      },
-    },
+  const hasTsconfig = existsSync(join(root, "tsconfig.json"));
+  if (!hasTsconfig)
+    console.log("> skipped convert-to-arrow (no tsconfig.json)");
+
+  const steps: Step[] = [];
+  if (hasTsconfig) steps.push(convertToArrowStep(paths, root));
+  steps.push(
     {
       name: "strip-braces",
       run: () => runAstGrep("strip-braces", paths, root, ["-U"]),
@@ -68,7 +75,7 @@ const runFormat = async (options: FormatOptions = {}): Promise<number> => {
       run: () => runBiome(["check", "--write"], paths, root),
     },
     { name: "pandoc", run: () => Promise.resolve(runPandoc(root, "write")) },
-  ];
+  );
 
   return runSequence(steps);
 };
