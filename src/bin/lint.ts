@@ -25,29 +25,26 @@ const LINT_RULES = [
 type LintOptions = { paths?: string[]; fast?: boolean };
 
 /**
- * Default path arguments to `.` when none are given (monorepos can pass
- * narrower paths), resolved to absolute from the caller's directory: the
- * tools run with `cwd: root`, so a relative argument left as typed would
- * be re-based onto the target directory and miss every file.
+ * Defaults missing path arguments to `.` (monorepos can pass narrower
+ * paths), then resolves each to absolute from the caller's directory:
+ * the tools run with `cwd: root`, so a relative argument left as typed
+ * would be re-based onto the target directory and miss every file.
  */
 const resolvePaths = (paths?: string[]): string[] =>
-  (paths !== undefined && paths.length > 0 ? paths : ["."]).map((path) =>
-    resolve(path),
-  );
+  (paths?.length ? paths : ["."]).map((path) => resolve(path));
 
 /**
  * The directory the tools run from: the first path itself, or — for a
- * glob argument — the deepest fully-literal directory of its static
- * prefix, since a pattern is no directory to spawn in. Biome discovers
- * its config here, the pandoc step walks it, and the pnpm steps look
- * for the lockfile at it.
+ * glob argument — the deepest directory before its first wildcard,
+ * since a pattern is no directory to spawn in. Biome discovers its
+ * config here, the pandoc step walks it, and the pnpm steps look for
+ * the lockfile at it.
  */
 const rootFor = (path: string): string => {
   const cut = path.search(/[*?{[]/);
   if (cut === -1) return path;
   const prefix = path.slice(0, cut);
-  const last = prefix.slice(-1);
-  return last === "/" || last === "\\" ? prefix.slice(0, -1) : dirname(prefix);
+  return /[\\/]$/.test(prefix) ? prefix.slice(0, -1) : dirname(prefix);
 };
 
 const astGrepRuleStep = (
@@ -68,7 +65,7 @@ const astGrepRuleStep = (
  */
 const runLint = async (options: LintOptions = {}): Promise<number> => {
   const paths = resolvePaths(options.paths);
-  const root = rootFor(paths[0] ?? ".");
+  const root = rootFor(paths[0]);
   const fast = options.fast === true;
   const hasLockfile = existsSync(join(root, "pnpm-lock.yaml"));
 
