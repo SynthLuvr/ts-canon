@@ -6,7 +6,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -26,9 +26,11 @@ const result = spawnSync(
   [
     // The hook strips .ts under node_modules via the experimental
     // stripTypeScriptTypes API; the warning would fire on every command.
+    // --import takes a module specifier, so the hook must be a file://
+    // URL — a bare Windows path parses as a "d:" protocol.
     "--disable-warning=ExperimentalWarning",
     "--import",
-    stripHook,
+    pathToFileURL(stripHook).href,
     entry,
     ...process.argv.slice(2),
   ],
