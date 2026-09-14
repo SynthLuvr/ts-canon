@@ -6,10 +6,7 @@ import { describe, expect, it } from "vitest";
 import { packageRoot } from "../lib/runner.ts";
 import { withTempDir } from "./helpers.ts";
 
-/**
- * End-to-end: the real launcher shim -> node's native type stripping -> the
- * TypeScript CLI.
- */
+/** End-to-end: the real launcher shim -> native type stripping -> the CLI. */
 const runLauncher = (args: string[]): ReturnType<typeof spawnSync> =>
   spawnSync(
     process.execPath,
@@ -20,10 +17,9 @@ const runLauncher = (args: string[]): ReturnType<typeof spawnSync> =>
   );
 
 /**
- * Copies the shipped package into `node_modules/ts-canon` the way a real
- * install lays it out, so the entry point's real path sits under
- * node_modules — where node refuses to type-strip and the hook in
- * `bin/type-strip.mjs` must take over.
+ * Lays the package out under `node_modules/ts-canon` like a real install,
+ * where node refuses to type-strip and the `bin/type-strip.mjs` hook must
+ * take over.
  */
 const installIntoTempNodeModules = (dir: string): string => {
   const pkg = join(dir, "node_modules", "ts-canon");
