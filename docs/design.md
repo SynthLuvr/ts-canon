@@ -100,7 +100,7 @@ cannot retroactively fix live repos. A shared package collapses this to
 ```
 
 **Dependency strategy — bundle, don’t peer.** biome, oxlint,
-oxlint-tsgolint, `@ast-grep/cli`, convert-to-arrow, jscpd, tsx, and
+oxlint-tsgolint, `@ast-grep/cli`, convert-to-arrow, jscpd, and
 npm-run-all2 become direct dependencies of `ts-canon`. Peer-deps would
 reintroduce the drift this package exists to kill. Two deliberate
 exceptions:

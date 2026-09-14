@@ -2,9 +2,9 @@ import { existsSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { oxlintCli, runOxlint, tsgolintExe } from "../lib/oxlint";
-import { packageRoot } from "../lib/runner";
-import { withTempDir } from "./helpers";
+import { oxlintCli, runOxlint, tsgolintExe } from "../lib/oxlint.ts";
+import { packageRoot } from "../lib/runner.ts";
+import { withTempDir } from "./helpers.ts";
 
 describe("oxlintCli", () => {
   it("resolves oxlint's real CLI entry point by absolute path", () => {

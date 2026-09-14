@@ -2,8 +2,8 @@ import { symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { sourceGlob } from "../lib/source-glob";
-import { withTempDir, writeFixture } from "./helpers";
+import { sourceGlob } from "../lib/source-glob.ts";
+import { withTempDir, writeFixture } from "./helpers.ts";
 
 describe("sourceGlob", () => {
   it("returns the whole tree when nothing dirty is present", () => {

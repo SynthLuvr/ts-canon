@@ -1,7 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { PANDOC_MISSING, pandocVersion } from "../lib/pandoc-md";
-import { pnpmVersion, pnpmVersionFromPackageManager } from "../lib/peer-deps";
-import { entryKind, resolveBin } from "../lib/runner";
+import { PANDOC_MISSING, pandocVersion } from "../lib/pandoc-md.ts";
+import {
+  pnpmVersion,
+  pnpmVersionFromPackageManager,
+} from "../lib/peer-deps.ts";
+import { entryKind, resolveBin } from "../lib/runner.ts";
 
 const MIN_NODE: [number, number, number] = [24, 0, 0];
 const MIN_PANDOC: [number, number, number] = [3, 10, 0];
@@ -49,7 +52,6 @@ const BUNDLED_TOOLS: [string, string][] = [
   ["convert-to-arrow", "convert-to-arrow"],
   ["jscpd", "jscpd"],
   ["oxlint", "oxlint"],
-  ["tsx", "tsx"],
 ];
 
 const checkNode = (): boolean => {

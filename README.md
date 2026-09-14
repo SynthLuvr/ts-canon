@@ -103,7 +103,7 @@ covered by the biome steps.
   own file extensions only; without the twins, repos with `.tsx` files
   would silently escape the rules.
 - Bundled as direct dependencies: biome, oxlint, oxlint-tsgolint,
-  `@ast-grep/cli`, convert-to-arrow, jscpd, tsx, npm-run-all2. Peer
+  `@ast-grep/cli`, convert-to-arrow, jscpd, npm-run-all2. Peer
   dependency ranges would reintroduce the drift this package exists to
   kill.
 
@@ -137,11 +137,16 @@ pnpm format   # ts-canon format
 pnpm test     # vitest with coverage thresholds
 ```
 
-The launcher is `bin/ts-canon.mjs` (plain ESM JS): it resolves the
-bundled tsx by absolute path and runs `src/bin/main.ts` under the
-current node. The package ships TypeScript sources (the vitest preset
-ships compiled — see above); publishing is tag-driven (npm publish plus
-a `dist` branch push for git-tarball consumption) — see
+The launcher is `bin/ts-canon.mjs` (plain ESM JS): it runs
+`src/bin/main.ts` under the current node with native type stripping
+(node \>= 24 — no tsx, no transpile step, no bundled loader). Node
+refuses to type-strip `.ts` under `node_modules`, so
+`bin/type-strip.mjs` — a `registerHooks` shim around node’s public
+`stripTypeScriptTypes` — covers installed copies; a checked-out or
+`link:`-ed copy resolves outside `node_modules` and uses node’s default
+stripping directly. The package ships TypeScript sources (the vitest
+preset ships compiled — see above); publishing is tag-driven (npm
+publish plus a `dist` branch push for git-tarball consumption) — see
 `.github/workflows/release.yml`. The repo’s own `vitest.config.ts`
 imports `ts-canon/presets/vitest`, so every `pnpm test` exercises the
 shipped compiled preset.

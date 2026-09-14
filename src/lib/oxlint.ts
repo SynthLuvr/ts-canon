@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { resolveBin, runCommand } from "./runner";
+import { resolveBin, runCommand } from "./runner.ts";
 
 const require = createRequire(import.meta.url);
 

@@ -7,8 +7,8 @@ import {
   pandocFormat,
   pandocVersion,
   runPandoc,
-} from "../lib/pandoc-md";
-import { withTempDir, writeFixture } from "./helpers";
+} from "../lib/pandoc-md.ts";
+import { withTempDir, writeFixture } from "./helpers.ts";
 
 const pandocAvailable = (): boolean => pandocVersion() !== undefined;
 

@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { packageRoot } from "../lib/runner";
+import { packageRoot } from "../lib/runner.ts";
 
 const WILDCARD_DIRS = ["presets", "rules"];
 

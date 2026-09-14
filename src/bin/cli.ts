@@ -1,7 +1,7 @@
-import { runDoctor } from "./doctor";
-import { runFormat } from "./format";
-import { runLint } from "./lint";
-import { runMigrate } from "./migrate";
+import { runDoctor } from "./doctor.ts";
+import { runFormat } from "./format.ts";
+import { runLint } from "./lint.ts";
+import { runMigrate } from "./migrate.ts";
 
 const USAGE = `usage: ts-canon <command> [paths...] [options]
 
@@ -61,8 +61,8 @@ const positionals = (args: string[], valueOptions: string[]): string[] => {
 };
 
 /**
- * Parses `argv` (already stripped of node/tsx) and dispatches to a
- * subcommand, returning the process exit code.
+ * Parses `argv` (already stripped of node and the entry script) and
+ * dispatches to a subcommand, returning the process exit code.
  */
 const main = async (argv: string[]): Promise<number> => {
   const [command, ...rest] = argv;

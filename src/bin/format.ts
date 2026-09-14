@@ -1,16 +1,16 @@
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { runPandoc } from "../lib/pandoc-md";
-import type { Step } from "../lib/runner";
+import { runPandoc } from "../lib/pandoc-md.ts";
+import type { Step } from "../lib/runner.ts";
 import {
   resolveBin,
   runAstGrep,
   runBiome,
   runCommand,
   runSequence,
-} from "../lib/runner";
-import { sourceGlob } from "../lib/source-glob";
-import { resolvePaths, rootFor } from "./lint";
+} from "../lib/runner.ts";
+import { sourceGlob } from "../lib/source-glob.ts";
+import { resolvePaths, rootFor } from "./lint.ts";
 
 type FormatOptions = { paths?: string[] };
 

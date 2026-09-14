@@ -1,34 +1,37 @@
 #!/usr/bin/env node
-// Launcher for the ts-canon CLI. Runs the TypeScript entry point through
-// the bundled tsx, resolved by absolute path and spawned under the current
-// node — no shell, no `.CMD` shim, per the Windows/AppLocker contract in
-// src/lib/runner.ts.
+// Launcher for the ts-canon CLI. Runs the TypeScript entry point under
+// node's native type stripping (node >= 24, per `engines`), spawned under
+// the current node — no shell, no `.CMD` shim, per the Windows/AppLocker
+// contract in src/lib/runner.ts.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
-const findTsx = () => {
-  let dir = packageRoot;
-  for (;;) {
-    const manifest = join(dir, "node_modules", "tsx", "package.json");
-    if (existsSync(manifest)) {
-      const { bin } = JSON.parse(readFileSync(manifest, "utf8"));
-      return join(dirname(manifest), bin);
-    }
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  throw new Error("ts-canon: cannot find the bundled tsx package");
-};
-
 const entry = join(packageRoot, "src", "bin", "main.ts");
+const stripHook = join(packageRoot, "bin", "type-strip.mjs");
+if (!existsSync(entry)) {
+  console.error(`ts-canon: CLI entry point is missing: ${entry}`);
+  process.exit(1);
+}
+if (!existsSync(stripHook)) {
+  console.error(`ts-canon: type-stripping hook is missing: ${stripHook}`);
+  process.exit(1);
+}
+
 const result = spawnSync(
   process.execPath,
-  [findTsx(), entry, ...process.argv.slice(2)],
+  [
+    // The hook strips .ts under node_modules via the experimental
+    // stripTypeScriptTypes API; the warning would fire on every command.
+    "--disable-warning=ExperimentalWarning",
+    "--import",
+    stripHook,
+    entry,
+    ...process.argv.slice(2),
+  ],
   { stdio: "inherit" },
 );
 if (result.error) {

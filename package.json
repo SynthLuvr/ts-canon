@@ -43,13 +43,7 @@
     "./rules/*": "./rules/*",
     "./tsconfig.base.json": "./presets/tsconfig.base.json"
   },
-  "files": [
-    "bin",
-    "src",
-    "presets",
-    "rules",
-    "!src/tests"
-  ],
+  "files": ["bin", "src", "presets", "rules", "!src/tests"],
   "scripts": {
     "build": "tsc",
     "doctor": "ts-canon doctor",
@@ -65,8 +59,7 @@
     "jscpd": "^5.2.0",
     "npm-run-all2": "^9.0.3",
     "oxlint": "^1.82.0",
-    "oxlint-tsgolint": "^7.0.2001",
-    "tsx": "^4.23.13"
+    "oxlint-tsgolint": "^7.0.2001"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
