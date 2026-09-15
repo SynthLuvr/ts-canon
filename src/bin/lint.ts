@@ -1,16 +1,16 @@
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { runOxlint } from "../lib/oxlint";
-import { runPandoc } from "../lib/pandoc-md";
-import { pnpmCommand, pnpmPeersCheck } from "../lib/peer-deps";
-import type { Step } from "../lib/runner";
+import { runOxlint } from "../lib/oxlint.ts";
+import { runPandoc } from "../lib/pandoc-md.ts";
+import { pnpmCommand, pnpmPeersCheck } from "../lib/peer-deps.ts";
+import type { Step } from "../lib/runner.ts";
 import {
   resolveBin,
   runAstGrep,
   runBiome,
   runCommand,
   runSequence,
-} from "../lib/runner";
+} from "../lib/runner.ts";
 
 /**
  * The ast-grep rules enforced by `ts-canon lint`, in the order the

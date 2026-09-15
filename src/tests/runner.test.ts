@@ -9,8 +9,8 @@ import {
   resolveBin,
   runCommand,
   runSequence,
-} from "../lib/runner";
-import { withTempDir, writeFixture } from "./helpers";
+} from "../lib/runner.ts";
+import { withTempDir, writeFixture } from "./helpers.ts";
 
 describe("findPackageDir", () => {
   it("finds a dependency installed at the repo root", () => {
@@ -34,7 +34,6 @@ describe("resolveBin", () => {
       ["convert-to-arrow", "convert-to-arrow"],
       ["jscpd", "jscpd"],
       ["oxlint", "oxlint"],
-      ["tsx", "tsx"],
     ] as const) {
       const file = resolveBin(pkg, bin);
       expect(isAbsolute(file)).toBe(true);
@@ -56,7 +55,9 @@ describe("resolveBin", () => {
 describe("entryKind", () => {
   it("treats js extensions as node entries", () => {
     expect(entryKind(resolveBin("jscpd", "jscpd"))).toBe("node");
-    expect(entryKind(resolveBin("tsx", "tsx"))).toBe("node");
+    expect(entryKind(resolveBin("convert-to-arrow", "convert-to-arrow"))).toBe(
+      "node",
+    );
   });
 
   it("sniffs the node shebang of extensionless bins", () => {

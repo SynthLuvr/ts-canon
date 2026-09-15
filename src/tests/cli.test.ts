@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { main } from "../bin/cli";
+import { main } from "../bin/cli.ts";
 
 describe("main", () => {
   it("prints usage and fails without a command", async () => {

@@ -109,7 +109,7 @@ formats all files 4. `biome check` — applies lint auto-fixes 5. `pandoc`
 ## Project Structure
 
 - `src/bin/` — CLI subcommands (`cli`, `lint`, `format`, `doctor`,
-  `migrate`); `src/bin/main.ts` is the tsx entry point
+  `migrate`); `src/bin/main.ts` is the node type-stripping entry point
 - `src/lib/` — the ported template scripts (`pandoc-md`, `peer-deps`,
   `oxlint`) and the spawn-by-absolute-path `runner`
 - `presets/`, `rules/` — the shipped biome/tsconfig/vitest/ast-grep
@@ -119,7 +119,9 @@ formats all files 4. `biome check` — applies lint auto-fixes 5. `pandoc`
   generated into temp dirs by the checked-in generators, so the
   self-hosted lint stays green
 - TypeScript is type-check only (`noEmit: true`); the package ships TS
-  sources run through the bundled tsx
+  sources run through node’s native type stripping (\>= 24; relative
+  imports carry explicit `.ts` extensions, and `bin/type-strip.mjs`
+  covers installed copies under `node_modules`)
 - ESM only (`"type": "module"`)
 
 ## Windows / AppLocker

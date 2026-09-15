@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { isAtLeast, parseVersion, runDoctor } from "../bin/doctor";
+import { isAtLeast, parseVersion, runDoctor } from "../bin/doctor.ts";
 
 describe("parseVersion", () => {
   it("parses release versions", () => {

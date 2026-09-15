@@ -2,9 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-import { main } from "../bin/cli";
-import { isRegistrySpec, runMigrate } from "../bin/migrate";
-import { withTempDir, writeFixture } from "./helpers";
+import { main } from "../bin/cli.ts";
+import { isRegistrySpec, runMigrate } from "../bin/migrate.ts";
+import { withTempDir, writeFixture } from "./helpers.ts";
 
 const LEGACY_PACKAGE_JSON = {
   name: "consumer",

@@ -2,11 +2,11 @@ import { readFileSync, rmSync, symlinkSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { runFormat } from "../bin/format";
-import { resolvePaths, rootFor, runLint } from "../bin/lint";
-import { pandocVersion } from "../lib/pandoc-md";
-import { packageRoot, runAstGrep } from "../lib/runner";
-import { withTempDir, writeFixture } from "./helpers";
+import { runFormat } from "../bin/format.ts";
+import { resolvePaths, rootFor, runLint } from "../bin/lint.ts";
+import { pandocVersion } from "../lib/pandoc-md.ts";
+import { packageRoot, runAstGrep } from "../lib/runner.ts";
+import { withTempDir, writeFixture } from "./helpers.ts";
 
 const pandocAvailable = (): boolean => pandocVersion() !== undefined;
 

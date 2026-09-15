@@ -7,8 +7,8 @@ import {
   pnpmPeersCheck,
   pnpmVersion,
   pnpmVersionFromPackageManager,
-} from "../lib/peer-deps";
-import { withTempDir, writeFixture } from "./helpers";
+} from "../lib/peer-deps.ts";
+import { withTempDir, writeFixture } from "./helpers.ts";
 
 /** Runs `body` with npm_execpath forced to `value`, restoring the original. */
 const withNpmExecpath = (value: string | undefined, body: () => void): void => {
