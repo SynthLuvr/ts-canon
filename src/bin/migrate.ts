@@ -1,12 +1,12 @@
 import {
   existsSync,
   mkdirSync,
-  readFileSync,
   rmdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { isPlainObject, readJson } from "../lib/json.ts";
 
 /** devDependencies ts-canon replaces (plus any `@ast-grep/cli-*` platform pin). */
 const TOOL_DEV_DEPS = new Set([
@@ -83,28 +83,14 @@ type MigrateOptions = { root?: string; version?: string; dryRun?: boolean };
 /** How the ts-canon devDependency spec was chosen for a migration. */
 type DevDepResult = { removed: string[]; spec: string; preserved: boolean };
 
-/** Parses `file` as JSON, failing with the file in the message. */
-const readJson = (file: string): unknown => {
-  try {
-    return JSON.parse(readFileSync(file, "utf8"));
-  } catch (error) {
-    throw new Error(
-      `${file}: invalid JSON ` +
-        `(${error instanceof Error ? error.message : String(error)})`,
-    );
-  }
-};
-
 /** Narrows parsed JSON to an object record, rejecting every other shape. */
 const jsonObjectOf = (
   value: unknown,
-  file: string,
+  where: string,
 ): Record<string, unknown> => {
-  if (value === null || typeof value !== "object" || Array.isArray(value))
-    throw new Error(`${file}: expected a JSON object`);
-  const record: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) record[key] = entry;
-  return record;
+  if (!isPlainObject(value))
+    throw new Error(`${where}: expected a JSON object`);
+  return value;
 };
 
 /**

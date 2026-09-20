@@ -1,15 +1,21 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { isPlainObject, readJson } from "./json.ts";
 
 /** File a consumer drops at the lint root to override shipped rules. */
 const CONFIG_FILE = "ts-canon.json";
 
 /**
- * Per-rule override from `ts-canon.json`. `"off"` skips the rule
- * entirely; an object narrows where it runs — `files` are include
- * globs, `ignores` exclude globs (gitignore syntax, later globs win).
+ * Where a rule runs: `files` are include globs, `ignores` exclude globs
+ * (gitignore syntax; when several globs match a file, the later wins).
  */
-type RuleOverride = "off" | { files?: string[]; ignores?: string[] };
+type RuleScope = { files?: string[]; ignores?: string[] };
+
+/**
+ * Per-rule override from `ts-canon.json`: `"off"` skips the rule
+ * entirely, a `RuleScope` narrows where it runs.
+ */
+type RuleOverride = "off" | RuleScope;
 
 /**
  * Fails with `where` context when `value` is not an array of non-empty
@@ -28,28 +34,27 @@ const asGlobList = (value: unknown, where: string): string[] => {
 /** Validates one `rules` entry, failing with the rule id as context. */
 const asRuleOverride = (id: string, value: unknown): RuleOverride => {
   if (value === "off") return value;
-  if (value === null || typeof value !== "object" || Array.isArray(value))
+  if (!isPlainObject(value))
     throw new Error(
       `rules.${id}: expected "off" or { files?, ignores? }, ` +
         `got ${JSON.stringify(value)}`,
     );
-  const override: { files?: string[]; ignores?: string[] } = {};
+  const scope: RuleScope = {};
   for (const [key, entry] of Object.entries(value)) {
     if (key !== "files" && key !== "ignores")
       throw new Error(`rules.${id}: unknown field "${key}"`);
-    override[key] = asGlobList(entry, `rules.${id}.${key}`);
+    scope[key] = asGlobList(entry, `rules.${id}.${key}`);
   }
-  return override;
+  return scope;
 };
 
 /**
  * Reads and validates `ts-canon.json` from `root` — the directory the
  * lint tools run from, so a scoped `ts-canon lint packages/x` reads the
- * config next to that package. Returns the per-rule overrides; a
- * missing file is the common case and configures nothing. A
- * present-but-invalid file throws rather than silently linting with
- * the wrong scope; rule ids are validated against `knownRules` so a
- * typo cannot quietly disable a rule the consumer meant to scope.
+ * config next to that package. A missing file is the common case and
+ * configures nothing; a present-but-invalid file throws rather than
+ * silently linting with the wrong scope, and rule ids are checked
+ * against `knownRules` so a typo cannot quietly disable a rule.
  */
 const loadRulesConfig = (
   root: string,
@@ -58,23 +63,15 @@ const loadRulesConfig = (
   const file = join(root, CONFIG_FILE);
   if (!existsSync(file)) return {};
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(file, "utf8"));
-  } catch (error) {
-    throw new Error(
-      `${CONFIG_FILE}: invalid JSON ` +
-        `(${error instanceof Error ? error.message : String(error)})`,
-    );
-  }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
+  const parsed = readJson(file);
+  if (!isPlainObject(parsed))
     throw new Error(`${CONFIG_FILE}: expected an object`);
   for (const key of Object.keys(parsed))
     if (key !== "rules")
       throw new Error(`${CONFIG_FILE}: unknown field "${key}"`);
-  if (!("rules" in parsed)) return {};
   const { rules } = parsed;
-  if (rules === null || typeof rules !== "object" || Array.isArray(rules))
+  if (rules === undefined) return {};
+  if (!isPlainObject(rules))
     throw new Error(`${CONFIG_FILE}: "rules" must be an object`);
 
   const overrides: Record<string, RuleOverride> = {};
@@ -89,5 +86,5 @@ const loadRulesConfig = (
   return overrides;
 };
 
-export type { RuleOverride };
+export type { RuleOverride, RuleScope };
 export { loadRulesConfig };

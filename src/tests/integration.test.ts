@@ -268,13 +268,14 @@ describe("no-unsafe-cast via ts-canon.json", () => {
   // A formatted mini repo with one extra cast file: every test below
   // starts from lint-clean-except-the-cast and exercises one scoping
   // mechanism. runLint includes pandoc, hence the skip gate.
-  const repoWithCast = (): [string, () => void] => {
+  const repoWithCast = (config?: string): [string, () => void] => {
     const [root, cleanup] = buildMiniRepo();
     writeFixture(
       root,
       "src/cast.ts",
       'const a = "1" as string;\n\nexport { a };\n',
     );
+    if (config !== undefined) writeFixture(root, "ts-canon.json", config);
     return [root, cleanup];
   };
 
@@ -295,10 +296,7 @@ describe("no-unsafe-cast via ts-canon.json", () => {
   it.skipIf(!pandocAvailable())(
     "passes when ts-canon.json ignores the file",
     async () => {
-      const [root, cleanup] = repoWithCast();
-      writeFixture(
-        root,
-        "ts-canon.json",
+      const [root, cleanup] = repoWithCast(
         '{ "rules": { "no-unsafe-cast": { "ignores": ["src/cast.ts"] } } }\n',
       );
       try {
@@ -314,10 +312,7 @@ describe("no-unsafe-cast via ts-canon.json", () => {
   it.skipIf(!pandocAvailable())(
     "passes when ts-canon.json scopes the rule away with files",
     async () => {
-      const [root, cleanup] = repoWithCast();
-      writeFixture(
-        root,
-        "ts-canon.json",
+      const [root, cleanup] = repoWithCast(
         '{ "rules": { "no-unsafe-cast": { "files": ["src/index.ts"] } } }\n',
       );
       try {
@@ -333,10 +328,7 @@ describe("no-unsafe-cast via ts-canon.json", () => {
   it.skipIf(!pandocAvailable())(
     "passes with the rule off",
     async () => {
-      const [root, cleanup] = repoWithCast();
-      writeFixture(
-        root,
-        "ts-canon.json",
+      const [root, cleanup] = repoWithCast(
         '{ "rules": { "no-unsafe-cast": "off" } }\n',
       );
       try {
@@ -352,10 +344,7 @@ describe("no-unsafe-cast via ts-canon.json", () => {
   it.skipIf(!pandocAvailable())(
     "fails with exit 2 on an invalid ts-canon.json",
     async () => {
-      const [root, cleanup] = repoWithCast();
-      writeFixture(
-        root,
-        "ts-canon.json",
+      const [root, cleanup] = repoWithCast(
         '{ "rules": { "no-unsafe-cast": { "ignores": ["src/cast.ts"] } }, "extra": 1 }\n',
       );
       try {

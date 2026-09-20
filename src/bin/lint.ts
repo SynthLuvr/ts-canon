@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { runOxlint } from "../lib/oxlint.ts";
 import { runPandoc } from "../lib/pandoc-md.ts";
 import { pnpmCommand, pnpmPeersCheck } from "../lib/peer-deps.ts";
-import type { RuleOverride } from "../lib/rules-config.ts";
+import type { RuleOverride, RuleScope } from "../lib/rules-config.ts";
 import { loadRulesConfig } from "../lib/rules-config.ts";
 import type { Step } from "../lib/runner.ts";
 import {
@@ -56,35 +56,50 @@ const rootFor = (path: string): string => {
 };
 
 /**
- * The `--globs` flags a rule's `ts-canon.json` override contributes.
+ * The `--globs` flags a rule's `ts-canon.json` scope contributes.
  * Include globs come first, excludes after — when several globs match a
  * file the later one wins, so ignores narrow what files broadened. The
- * baseline declaration-file exclusion is appended last in the step
+ * baseline declaration-file exclusion is appended last by the step
  * below so generated `.d.ts` files stay out even when an include
  * matches them.
  */
-const overrideGlobs = (override: RuleOverride | undefined): string[] => {
-  if (override === undefined || override === "off") return [];
-  return [
-    ...(override.files ?? []).map((glob) => `--globs=${glob}`),
-    ...(override.ignores ?? []).map((glob) => `--globs=!${glob}`),
-  ];
-};
+const scopeGlobs = (scope: RuleScope | undefined): string[] =>
+  scope === undefined
+    ? []
+    : [
+        ...(scope.files ?? []).map((glob) => `--globs=${glob}`),
+        ...(scope.ignores ?? []).map((glob) => `--globs=!${glob}`),
+      ];
 
 const astGrepRuleStep = (
   id: LintRuleId,
   paths: string[],
   root: string,
-  override: RuleOverride | undefined,
+  scope: RuleScope | undefined,
 ): Step => ({
   name: `ast-grep:${id}`,
   run: () =>
     runAstGrep(id, paths, root, [
       `--error=${id}`,
-      ...overrideGlobs(override),
+      ...scopeGlobs(scope),
       "--globs=!**/*.d.ts",
     ]),
 });
+
+/** One step per shipped rule, skipping any turned off in ts-canon.json. */
+const ruleSteps = (
+  paths: string[],
+  root: string,
+  overrides: Record<string, RuleOverride>,
+): Step[] => {
+  const steps: Step[] = [];
+  for (const id of LINT_RULES) {
+    const override = overrides[id];
+    if (override === "off") continue;
+    steps.push(astGrepRuleStep(id, paths, root, override));
+  }
+  return steps;
+};
 
 /**
  * Runs every lint check from the canonical toolchain, in order, and fails
@@ -108,7 +123,6 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
     console.error(error instanceof Error ? error.message : String(error));
     return 2;
   }
-  const offRules = LINT_RULES.filter((id) => overrides[id] === "off");
 
   const steps: Step[] = [
     { name: "biome", run: () => runBiome(["check"], paths, root) },
@@ -116,9 +130,7 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
       name: "oxlint",
       run: () => runOxlint(["--deny-warnings", ...paths], root),
     },
-    ...LINT_RULES.filter((id) => overrides[id] !== "off").map((id) =>
-      astGrepRuleStep(id, paths, root, overrides[id]),
-    ),
+    ...ruleSteps(paths, root, overrides),
     { name: "pandoc", run: () => Promise.resolve(runPandoc(root, "check")) },
   ];
   if (hasLockfile)
@@ -152,9 +164,9 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
         ),
     });
 
-  const skipped: string[] = offRules.map(
-    (id) => `ast-grep:${id} (off in ts-canon.json)`,
-  );
+  const skipped: string[] = LINT_RULES.filter(
+    (id) => overrides[id] === "off",
+  ).map((id) => `ast-grep:${id} (off in ts-canon.json)`);
   if (!hasLockfile) skipped.push("peer-deps (no pnpm-lock.yaml)");
   if (fast) skipped.push("audit (--fast)", "jscpd (--fast)");
   else if (!hasLockfile) skipped.push("audit (no pnpm-lock.yaml)");
