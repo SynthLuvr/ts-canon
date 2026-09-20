@@ -1,0 +1,40 @@
+# Flags type assertions (`value as T` and `<T>value`): a cast makes a
+# runtime claim nothing checked, so a wrong shape fails far from its
+# source. Validate instead — a schema at data boundaries, a
+# typeof/instanceof narrowing elsewhere. `as const` is allowed: it
+# tightens literal types at compile time and makes no runtime claim.
+#
+# ast-grep matches a language's own file extensions only — a TypeScript
+# rule sees `.ts` files, a Tsx rule sees `.tsx` — so the rule ships
+# twice under the same id, once per language. Repos with `.tsx` files
+# would silently escape the rule without the twin.
+#
+# The rule carries no `files`/`ignores` of its own: scoping belongs to
+# the consumer, via `ts-canon.json` (per-rule files/ignores/off, see
+# README) and per-line `ast-grep-ignore` comments.
+id: no-unsafe-cast
+language: TypeScript
+severity: error
+message: >
+  Unsafe cast: a type assertion makes a runtime claim nothing checked.
+  Validate the value instead — a schema at data boundaries, a
+  typeof/instanceof narrowing elsewhere. `as const` is allowed.
+rule:
+  any:
+    - kind: as_expression
+    # `<T>value` old-style assertion; no Tsx twin — invalid in JSX.
+    - kind: type_assertion
+  not:
+    pattern: $X as const
+---
+id: no-unsafe-cast
+language: Tsx
+severity: error
+message: >
+  Unsafe cast: a type assertion makes a runtime claim nothing checked.
+  Validate the value instead — a schema at data boundaries, a
+  typeof/instanceof narrowing elsewhere. `as const` is allowed.
+rule:
+  kind: as_expression
+  not:
+    pattern: $X as const

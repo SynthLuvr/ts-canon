@@ -80,7 +80,7 @@ cannot retroactively fix live repos. A shared package collapses this to
         presets/vitest.d.mts      #   (+ types): node cannot type-strip .ts
                                   #   under node_modules
         presets/sgconfig.yml      # ruleDirs -> package rules/
-        rules/                    # the 4 ast-grep files (11 rule ids)
+        rules/                    # the 5 ast-grep files (12 rule ids)
       src/tests/                  # unit + fixture-repo integration tests
 
 **Consumer surface after migration:**

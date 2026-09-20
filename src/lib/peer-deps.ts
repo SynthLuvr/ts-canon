@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { isPlainObject } from "./json.ts";
 
 /**
  * Spawns pnpm without touching PATH: `npm_execpath` is pnpm's real entry
@@ -56,10 +57,12 @@ const pnpmVersion = (): string | undefined => {
  */
 const manifestPackageManager = (dir: string): string | undefined => {
   try {
-    const parsed = JSON.parse(
+    const parsed: unknown = JSON.parse(
       readFileSync(join(dir, "package.json"), "utf8"),
-    ) as { packageManager?: string };
-    return parsed.packageManager;
+    );
+    if (!isPlainObject(parsed)) return undefined;
+    const { packageManager } = parsed;
+    return typeof packageManager === "string" ? packageManager : undefined;
   } catch {
     return undefined;
   }

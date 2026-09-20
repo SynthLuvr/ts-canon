@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "no-unsafe-cast": {
+      "files": ["src/**", "presets/**", "bin/**"],
+      "ignores": ["src/tests/**"]
+    }
+  }
+}

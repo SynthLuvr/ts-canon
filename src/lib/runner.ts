@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isPlainObject } from "./json.ts";
 
 /**
  * Locates an installed package directory by walking up from this file, the
@@ -30,6 +31,18 @@ const findPackageDir = (pkg: string): string => {
 };
 
 /**
+ * The `bin` entry named `bin` from a package manifest's `bin` field:
+ * the field is either the script path itself or a name → path map.
+ * Returns `undefined` for any shape that names no such script.
+ */
+const binEntry = (value: unknown, bin: string): string | undefined => {
+  if (typeof value === "string") return value;
+  if (!isPlainObject(value)) return undefined;
+  const entry = value[bin];
+  return typeof entry === "string" ? entry : undefined;
+};
+
+/**
  * Absolute path to a bin inside an installed package, read from its `bin`
  * field. This is the AppLocker-safe resolution technique: the returned file
  * is the tool's real entry point, so it can be spawned without a shell and
@@ -37,12 +50,12 @@ const findPackageDir = (pkg: string): string => {
  */
 const resolveBin = (pkg: string, bin: string): string => {
   const dir = findPackageDir(pkg);
-  const manifest = join(dir, "package.json");
-  const parsed = JSON.parse(readFileSync(manifest, "utf8")) as {
-    bin: Record<string, string> | string;
-  };
-  const relative =
-    typeof parsed.bin === "string" ? parsed.bin : parsed.bin[bin];
+  const manifest: unknown = JSON.parse(
+    readFileSync(join(dir, "package.json"), "utf8"),
+  );
+  const relative = isPlainObject(manifest)
+    ? binEntry(manifest.bin, bin)
+    : undefined;
   if (relative === undefined)
     throw new Error(`package ${pkg} has no "${bin}" bin`);
 

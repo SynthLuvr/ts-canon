@@ -49,7 +49,7 @@ const pandocVersion = (): string | undefined => {
 };
 
 const isMissingPandoc = (error: unknown): boolean =>
-  (error as NodeJS.ErrnoException).code === "ENOENT";
+  error instanceof Error && "code" in error && error.code === "ENOENT";
 
 type PandocMode = "check" | "write";
 

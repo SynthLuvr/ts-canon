@@ -82,6 +82,20 @@ Source files must not begin with a `//` or `/*` comment (ast-grep rule
 
 `if`/`for`/`while` with a single body statement should not have braces.
 
+### No unsafe casts
+
+A cast makes a runtime claim nothing checked: it asserts, never
+verifies, so a wrong shape fails as a runtime error far from its source.
+The goal of the rule is to prevent those errors and to keep shape
+checking with what actually verifies — type validation libraries such as
+arktype. Product code must not assert a type with `as` (ast-grep rule
+`no-unsafe-cast`); runtime data is validated instead:
+`typeof`/`instanceof`/`in` narrowing at data boundaries. `as const` is
+allowed (compile-time literal tightening, no runtime claim). Tests
+deliberately read unchecked JSON through narrow assertions, so this repo
+scopes them out in `ts-canon.json`; a single line can be suppressed with
+`// ast-grep-ignore: no-unsafe-cast`.
+
 ### Formatting
 
 - Double quotes
@@ -111,7 +125,8 @@ formats all files 4. `biome check` — applies lint auto-fixes 5. `pandoc`
 - `src/bin/` — CLI subcommands (`cli`, `lint`, `format`, `doctor`,
   `migrate`); `src/bin/main.ts` is the node type-stripping entry point
 - `src/lib/` — the ported template scripts (`pandoc-md`, `peer-deps`,
-  `oxlint`) and the spawn-by-absolute-path `runner`
+  `oxlint`), the spawn-by-absolute-path `runner`, and the
+  `ts-canon.json` rule-override loader (`rules-config`)
 - `presets/`, `rules/` — the shipped biome/tsconfig/vitest/ast-grep
   assets, referenced by the package `exports` map
 - `bin/ts-canon.mjs` — the published launcher shim (plain ESM JS)

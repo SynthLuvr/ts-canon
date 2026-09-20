@@ -148,6 +148,7 @@ describe("ast-grep lint rules (package-relative --rule)", () => {
     ],
     ["no-function-declaration", "function foo(): void {}\nexport { foo };\n"],
     ["no-inline-export", "export const b = 2;\n"],
+    ["no-unsafe-cast", 'const a = "1" as string;\nexport { a };\n'],
   ] as const;
 
   const withJsxElement = (source: string): string =>
@@ -195,6 +196,166 @@ describe("ast-grep lint rules (package-relative --rule)", () => {
       cleanup();
     }
   }, 60_000);
+});
+
+describe("no-unsafe-cast scoping", () => {
+  // The same rule invocation the lint step uses, so these exercise
+  // exactly what `ts-canon lint` runs for a single rule.
+  const scanRule = (dir: string, file: string): Promise<number> =>
+    runAstGrep("no-unsafe-cast", [join(dir, file)], dir, [
+      "--error=no-unsafe-cast",
+      "--globs=!**/*.d.ts",
+    ]);
+
+  it("allows as const (compile-time literal tightening)", async () => {
+    const [dir, cleanup] = withTempDir();
+    try {
+      writeFixture(
+        dir,
+        "ok.ts",
+        "const config = { retries: 2 } as const;\nexport { config };\n",
+      );
+      expect(await scanRule(dir, "ok.ts")).toBe(0);
+    } finally {
+      cleanup();
+    }
+  }, 60_000);
+
+  it("allows a cast under an ast-grep-ignore comment", async () => {
+    const [dir, cleanup] = withTempDir();
+    try {
+      writeFixture(
+        dir,
+        "ok.ts",
+        'const a = "1" as string; // ast-grep-ignore: no-unsafe-cast\n\nexport { a };\n',
+      );
+      writeFixture(
+        dir,
+        "ok2.ts",
+        "// ast-grep-ignore\n" +
+          'const b = "2" as string;\n\nexport { b };\n' +
+          'const c = "3" as string;\n\nexport { c };\n',
+      );
+      // ok.ts and the commented cast in ok2.ts pass; ok2.ts's second
+      // cast has no suppression, so the scan still fails — one match.
+      expect(await scanRule(dir, "ok.ts")).toBe(0);
+      expect(
+        await runAstGrep("no-unsafe-cast", [join(dir, "ok2.ts")], dir, [
+          "--error=no-unsafe-cast",
+        ]),
+      ).toBe(1);
+    } finally {
+      cleanup();
+    }
+  }, 60_000);
+
+  it("flags angle-bracket casts in .ts but not .tsx (invalid JSX)", async () => {
+    const [dir, cleanup] = withTempDir();
+    try {
+      writeFixture(
+        dir,
+        "angle.ts",
+        "const n = <number>undefined;\n\nexport { n };\n",
+      );
+      expect(await scanRule(dir, "angle.ts")).toBe(1);
+    } finally {
+      cleanup();
+    }
+  }, 60_000);
+});
+
+describe("no-unsafe-cast via ts-canon.json", () => {
+  // A formatted mini repo with one extra cast file: every test below
+  // starts from lint-clean-except-the-cast and exercises one scoping
+  // mechanism. runLint includes pandoc, hence the skip gate.
+  const repoWithCast = (config?: string): [string, () => void] => {
+    const [root, cleanup] = buildMiniRepo();
+    writeFixture(
+      root,
+      "src/cast.ts",
+      'const a = "1" as string;\n\nexport { a };\n',
+    );
+    if (config !== undefined) writeFixture(root, "ts-canon.json", config);
+    return [root, cleanup];
+  };
+
+  it.skipIf(!pandocAvailable())(
+    "fails on a cast by default",
+    async () => {
+      const [root, cleanup] = repoWithCast();
+      try {
+        await runFormat({ paths: [root] });
+        expect(await runLint({ paths: [root], fast: true })).not.toBe(0);
+      } finally {
+        cleanup();
+      }
+    },
+    120_000,
+  );
+
+  it.skipIf(!pandocAvailable())(
+    "passes when ts-canon.json ignores the file",
+    async () => {
+      const [root, cleanup] = repoWithCast(
+        '{ "rules": { "no-unsafe-cast": { "ignores": ["src/cast.ts"] } } }\n',
+      );
+      try {
+        await runFormat({ paths: [root] });
+        expect(await runLint({ paths: [root], fast: true })).toBe(0);
+      } finally {
+        cleanup();
+      }
+    },
+    120_000,
+  );
+
+  it.skipIf(!pandocAvailable())(
+    "passes when ts-canon.json scopes the rule away with files",
+    async () => {
+      const [root, cleanup] = repoWithCast(
+        '{ "rules": { "no-unsafe-cast": { "files": ["src/index.ts"] } } }\n',
+      );
+      try {
+        await runFormat({ paths: [root] });
+        expect(await runLint({ paths: [root], fast: true })).toBe(0);
+      } finally {
+        cleanup();
+      }
+    },
+    120_000,
+  );
+
+  it.skipIf(!pandocAvailable())(
+    "passes with the rule off",
+    async () => {
+      const [root, cleanup] = repoWithCast(
+        '{ "rules": { "no-unsafe-cast": "off" } }\n',
+      );
+      try {
+        await runFormat({ paths: [root] });
+        expect(await runLint({ paths: [root], fast: true })).toBe(0);
+      } finally {
+        cleanup();
+      }
+    },
+    120_000,
+  );
+
+  it.skipIf(!pandocAvailable())(
+    "fails with exit 2 on an invalid ts-canon.json",
+    async () => {
+      const [root, cleanup] = repoWithCast(
+        '{ "rules": { "no-unsafe-cast": { "ignores": ["src/cast.ts"] } }, "extra": 1 }\n',
+      );
+      try {
+        await runFormat({ paths: [root] });
+        expect(await runLint({ paths: [root], fast: true })).toBe(2);
+      } finally {
+        cleanup();
+      }
+    },
+    120_000,
+  );
 });
 
 describe("fixture mini repo", () => {

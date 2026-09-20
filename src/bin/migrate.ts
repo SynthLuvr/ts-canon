@@ -1,12 +1,12 @@
 import {
   existsSync,
   mkdirSync,
-  readFileSync,
   rmdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { isPlainObject, readJson } from "../lib/json.ts";
 
 /** devDependencies ts-canon replaces (plus any `@ast-grep/cli-*` platform pin). */
 const TOOL_DEV_DEPS = new Set([
@@ -73,6 +73,7 @@ Consider extending tsconfig.json from ts-canon/presets/tsconfig.base.json
 and keeping a local .oxlintrc.json for type-aware rules.`;
 
 type PackageJson = {
+  [field: string]: unknown;
   scripts?: Record<string, string>;
   devDependencies?: Record<string, string>;
 };
@@ -82,8 +83,43 @@ type MigrateOptions = { root?: string; version?: string; dryRun?: boolean };
 /** How the ts-canon devDependency spec was chosen for a migration. */
 type DevDepResult = { removed: string[]; spec: string; preserved: boolean };
 
-const readJson = <T>(file: string): T =>
-  JSON.parse(readFileSync(file, "utf8")) as T;
+/** Narrows parsed JSON to an object record, rejecting every other shape. */
+const jsonObjectOf = (
+  value: unknown,
+  where: string,
+): Record<string, unknown> => {
+  if (!isPlainObject(value))
+    throw new Error(`${where}: expected a JSON object`);
+  return value;
+};
+
+/**
+ * Narrows `value` to a string→string record, so a malformed manifest
+ * field fails the migration with a pointer at the field instead of a
+ * TypeError far from its source.
+ */
+const stringsOf = (value: unknown, where: string): Record<string, string> => {
+  const record: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(jsonObjectOf(value, where)))
+    if (typeof entry !== "string")
+      throw new Error(`${where}: "${key}" must be a string`);
+    else record[key] = entry;
+  return record;
+};
+
+/**
+ * Reads a package.json, narrowing the two fields the migration rewrites
+ * (`scripts`, `devDependencies`) to string records; every other field
+ * passes through untouched.
+ */
+const readPackageJson = (file: string): PackageJson => {
+  const pkg: PackageJson = {};
+  for (const [key, entry] of Object.entries(jsonObjectOf(readJson(file), file)))
+    if (key === "scripts" || key === "devDependencies")
+      pkg[key] = stringsOf(entry, `${file}: "${key}"`);
+    else pkg[key] = entry;
+  return pkg;
+};
 
 const writeJson = (file: string, value: unknown): void => {
   mkdirSync(dirname(file), { recursive: true });
@@ -134,10 +170,12 @@ const rewriteDevDeps = (pkg: PackageJson, version?: string): DevDepResult => {
 const ensureBiomeExtends = (root: string, dryRun: boolean): void => {
   const file = join(root, "biome.json");
   const biome: Record<string, unknown> = existsSync(file)
-    ? readJson<Record<string, unknown>>(file)
+    ? jsonObjectOf(readJson(file), file)
     : {};
   const extended = Array.isArray(biome.extends)
-    ? (biome.extends as string[])
+    ? biome.extends.filter(
+        (entry): entry is string => typeof entry === "string",
+      )
     : [];
   if (extended.includes(BIOME_EXTENDS)) return;
 
@@ -214,7 +252,7 @@ const runMigrate = (options: MigrateOptions = {}): number => {
     return 1;
   }
 
-  const pkg = readJson<PackageJson>(pkgPath);
+  const pkg = readPackageJson(pkgPath);
   const removedScripts = rewriteScripts(pkg);
   const devDeps = rewriteDevDeps(pkg, options.version);
 
