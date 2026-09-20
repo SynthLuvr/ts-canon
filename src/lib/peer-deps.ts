@@ -56,10 +56,13 @@ const pnpmVersion = (): string | undefined => {
  */
 const manifestPackageManager = (dir: string): string | undefined => {
   try {
-    const parsed = JSON.parse(
+    const parsed: unknown = JSON.parse(
       readFileSync(join(dir, "package.json"), "utf8"),
-    ) as { packageManager?: string };
-    return parsed.packageManager;
+    );
+    if (parsed === null || typeof parsed !== "object") return undefined;
+    if (!("packageManager" in parsed)) return undefined;
+    const { packageManager } = parsed;
+    return typeof packageManager === "string" ? packageManager : undefined;
   } catch {
     return undefined;
   }

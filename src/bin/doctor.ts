@@ -97,7 +97,11 @@ const checkBundledTools = (): boolean => {
       const version = toolVersion(resolveBin(pkg, bin)) ?? "installed";
       console.log(`ok   ${pkg} — ${version}`);
     } catch (error) {
-      report(pkg, false, (error as Error).message);
+      report(
+        pkg,
+        false,
+        error instanceof Error ? error.message : String(error),
+      );
       ok = false;
     }
   return ok;

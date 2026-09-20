@@ -53,7 +53,7 @@ keeps that spec intact.
 
 | Command | Description |
 |----|----|
-| `ts-canon lint` | All checks: biome, oxlint (tsgolint), 3 ast-grep rules, pandoc, peer-deps, `pnpm audit --prod`, jscpd |
+| `ts-canon lint` | All checks: biome, oxlint (tsgolint), 4 ast-grep rules, pandoc, peer-deps, `pnpm audit --prod`, jscpd |
 | `ts-canon format` | All formatters, in order: convert-to-arrow, strip-braces, biome format, biome check, pandoc |
 | `ts-canon doctor` | Verify pandoc (\>= 3.10), node (\>= 24), pnpm, bundled tools, and the consumer-side typescript |
 | `ts-canon migrate` | Convert a repo to ts-canon (see above; `--dry-run`, `--version <spec>`) |
@@ -82,6 +82,56 @@ in a directory that holds a `node_modules` (a workspace root’s
 canonical per-step scripts never covered them either — and remain
 covered by the biome steps.
 
+## Scoping and disabling rules
+
+The four ast-grep lint rules — `no-inline-export`,
+`no-function-declaration`, `no-file-comment`, `no-unsafe-cast` — run
+repo-wide by default. `no-unsafe-cast` rejects type assertions
+(`value as T`, `<T>value`): a cast makes a runtime claim nothing
+checked, so validate instead — a schema at data boundaries, a
+typeof/instanceof narrowing elsewhere. `as const` is allowed
+(compile-time literal tightening, no runtime claim). Three escape
+hatches, broadest to narrowest:
+
+**Per directory or file — `ts-canon.json`.** Drop a config at the root
+you lint (the repo root, or the package directory in a scoped
+`ts-canon lint packages/x` run):
+
+``` json
+{
+  "rules": {
+    "no-unsafe-cast": {
+      "files": ["src/**", "scripts/**"],
+      "ignores": ["**/tests/**", "**/*.test.ts"]
+    },
+    "no-file-comment": "off"
+  }
+}
+```
+
+`files` are include globs — the rule runs only where they match;
+`ignores` are excludes (gitignore syntax; when several globs match a
+file, the later one wins); `"off"` skips the rule entirely, reported in
+the run’s skipped list. Unknown rule ids and malformed values fail the
+run with a pointer at the field, so a typo cannot quietly disable a rule
+you meant to scope.
+
+**Per line — ast-grep suppression comments.** ast-grep natively
+suppresses rules on the preceding line or the same line:
+
+``` ts
+// ast-grep-ignore: no-unsafe-cast
+const parsed = raw as Config;
+
+const scoped = raw2 as Config; // ast-grep-ignore
+```
+
+A bare `ast-grep-ignore` suppresses every rule on that line; the
+`rule-id` form suppresses only the named rule, so a comment intended for
+one rule cannot mask another. This is ast-grep behavior, not ts-canon’s
+— the same comments work in bare `ast-grep scan` and the editor
+integrations.
+
 ## What you get
 
 - `presets/biome.preset.json` — the canonical biome config; keep a local
@@ -97,7 +147,7 @@ covered by the biome steps.
   cannot work from a real install.
 - `presets/sgconfig.yml` — copy to your repo root to point bare
   `ast-grep scan` and editor integrations at the shipped rules.
-- `rules/` — the four ast-grep rule files (11 rule ids). Every rule
+- `rules/` — the five ast-grep rule files (12 rule ids). Every rule
   ships twice under the same id — a `TypeScript` document for `.ts` and
   a `Tsx` document for `.tsx` — because ast-grep matches a language’s
   own file extensions only; without the twins, repos with `.tsx` files

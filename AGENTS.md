@@ -82,6 +82,16 @@ Source files must not begin with a `//` or `/*` comment (ast-grep rule
 
 `if`/`for`/`while` with a single body statement should not have braces.
 
+### No unsafe casts
+
+Product code must not assert a type with `as` — a cast makes a runtime
+claim nothing checked (ast-grep rule `no-unsafe-cast`). Runtime data is
+validated instead: `typeof`/`instanceof`/`in` narrowing at data
+boundaries. `as const` is allowed (compile-time literal tightening, no
+runtime claim). Tests deliberately read unchecked JSON through narrow
+assertions, so this repo scopes them out in `ts-canon.json`; a single
+line can be suppressed with `// ast-grep-ignore: no-unsafe-cast`.
+
 ### Formatting
 
 - Double quotes
@@ -111,7 +121,8 @@ formats all files 4. `biome check` — applies lint auto-fixes 5. `pandoc`
 - `src/bin/` — CLI subcommands (`cli`, `lint`, `format`, `doctor`,
   `migrate`); `src/bin/main.ts` is the node type-stripping entry point
 - `src/lib/` — the ported template scripts (`pandoc-md`, `peer-deps`,
-  `oxlint`) and the spawn-by-absolute-path `runner`
+  `oxlint`), the spawn-by-absolute-path `runner`, and the
+  `ts-canon.json` rule-override loader (`rules-config`)
 - `presets/`, `rules/` — the shipped biome/tsconfig/vitest/ast-grep
   assets, referenced by the package `exports` map
 - `bin/ts-canon.mjs` — the published launcher shim (plain ESM JS)

@@ -35,14 +35,28 @@ const findPackageDir = (pkg: string): string => {
  * is the tool's real entry point, so it can be spawned without a shell and
  * without the `.CMD` shims pnpm writes for Windows.
  */
+/**
+ * The `bin` entry named `bin` from a package manifest's `bin` field:
+ * the field is either the script path itself or a name → path map.
+ * Returns `undefined` for any shape that names no such script.
+ */
+const binEntry = (value: unknown, bin: string): string | undefined => {
+  if (typeof value === "string") return value;
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return undefined;
+  for (const [name, entry] of Object.entries(value))
+    if (name === bin && typeof entry === "string") return entry;
+  return undefined;
+};
+
 const resolveBin = (pkg: string, bin: string): string => {
   const dir = findPackageDir(pkg);
   const manifest = join(dir, "package.json");
-  const parsed = JSON.parse(readFileSync(manifest, "utf8")) as {
-    bin: Record<string, string> | string;
-  };
+  const parsed: unknown = JSON.parse(readFileSync(manifest, "utf8"));
   const relative =
-    typeof parsed.bin === "string" ? parsed.bin : parsed.bin[bin];
+    parsed !== null && typeof parsed === "object" && "bin" in parsed
+      ? binEntry(parsed.bin, bin)
+      : undefined;
   if (relative === undefined)
     throw new Error(`package ${pkg} has no "${bin}" bin`);
 
