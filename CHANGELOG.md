@@ -1,13 +1,11 @@
 # Changelog
 
-Notable changes to ts-canon, newest first. Entries land under Unreleased
-as they merge; versions are assigned at release time by
-`.github/workflows/release.yml`.
+Notable changes to ts-canon, newest first — one section per release.
 
-## Unreleased
+## 0.2.0
 
-Release type: minor — new feature plus a new default lint behavior; no
-breaking API or config-schema changes.
+New feature plus a new default lint behavior; no breaking API or
+config-schema changes.
 
 ### Added
 
