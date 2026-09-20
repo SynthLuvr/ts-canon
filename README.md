@@ -87,11 +87,12 @@ covered by the biome steps.
 The four ast-grep lint rules — `no-inline-export`,
 `no-function-declaration`, `no-file-comment`, `no-unsafe-cast` — run
 repo-wide by default. `no-unsafe-cast` rejects type assertions
-(`value as T`, `<T>value`): a cast makes a runtime claim nothing
-checked, so validate instead — a schema at data boundaries, a
-typeof/instanceof narrowing elsewhere. `as const` is allowed
-(compile-time literal tightening, no runtime claim). Three escape
-hatches, broadest to narrowest:
+(`value as T`, `<T>value`) — the goal is to prevent runtime errors and
+encourage type validation libraries such as arktype, since a cast makes
+a runtime claim nothing checked. Validate instead — a schema at data
+boundaries, a typeof/instanceof narrowing elsewhere. `as const` is
+allowed (compile-time literal tightening, no runtime claim). Three
+escape hatches, broadest to narrowest:
 
 **Per directory or file — `ts-canon.json`.** Drop a config at the root
 you lint (the repo root, or the package directory in a scoped

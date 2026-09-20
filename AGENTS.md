@@ -84,13 +84,15 @@ Source files must not begin with a `//` or `/*` comment (ast-grep rule
 
 ### No unsafe casts
 
-Product code must not assert a type with `as` — a cast makes a runtime
-claim nothing checked (ast-grep rule `no-unsafe-cast`). Runtime data is
-validated instead: `typeof`/`instanceof`/`in` narrowing at data
-boundaries. `as const` is allowed (compile-time literal tightening, no
-runtime claim). Tests deliberately read unchecked JSON through narrow
-assertions, so this repo scopes them out in `ts-canon.json`; a single
-line can be suppressed with `// ast-grep-ignore: no-unsafe-cast`.
+The goal of the rule is to prevent runtime errors and encourage type
+validation libraries such as arktype. Product code must not assert a
+type with `as` — a cast makes a runtime claim nothing checked (ast-grep
+rule `no-unsafe-cast`). Runtime data is validated instead:
+`typeof`/`instanceof`/`in` narrowing at data boundaries. `as const` is
+allowed (compile-time literal tightening, no runtime claim). Tests
+deliberately read unchecked JSON through narrow assertions, so this repo
+scopes them out in `ts-canon.json`; a single line can be suppressed with
+`// ast-grep-ignore: no-unsafe-cast`.
 
 ### Formatting
 
