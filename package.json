@@ -27,7 +27,7 @@
   "type": "module",
   "license": "MIT",
   "private": false,
-  "packageManager": "pnpm@12.6.0",
+  "packageManager": "pnpm@12.9.1",
   "engines": {
     "node": ">=24"
   },
@@ -43,13 +43,7 @@
     "./rules/*": "./rules/*",
     "./tsconfig.base.json": "./presets/tsconfig.base.json"
   },
-  "files": [
-    "bin",
-    "src",
-    "presets",
-    "rules",
-    "!src/tests"
-  ],
+  "files": ["bin", "src", "presets", "rules", "!src/tests"],
   "scripts": {
     "build": "tsc",
     "doctor": "ts-canon doctor",
@@ -60,18 +54,18 @@
   },
   "dependencies": {
     "@ast-grep/cli": "^0.45.3",
-    "@biomejs/biome": "^2.5.14",
+    "@biomejs/biome": "^2.5.15",
     "convert-to-arrow": "^1.1.4",
-    "jscpd": "^5.3.2",
+    "jscpd": "^5.4.0",
     "npm-run-all2": "^9.0.3",
-    "oxlint": "^1.85.0",
+    "oxlint": "^1.86.0",
     "oxlint-tsgolint": "^7.0.2003"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
-    "@vitest/coverage-v8": "^5.0.2",
+    "@types/node": "^26.6.4",
+    "@vitest/coverage-v8": "^5.0.3",
     "ts-canon": "link:.",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.3"
   }
 }
