@@ -52,7 +52,7 @@ jobs:
       # registry-url tells npm which registry to publish to; the actual
       # authentication is the OIDC exchange (id-token: write above) checked
       # against the npm trusted-publisher config. No NPM_TOKEN is needed.
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: "26"
           # npm trusted-publishing guidance: never cache in release builds.
@@ -61,8 +61,8 @@ jobs:
 
       - name: Install pandoc (pinned for Markdown lint/format)
         run: |
-          wget -q https://github.com/jgm/pandoc/releases/download/3.12/pandoc-3.12-1-amd64.deb
-          sudo dpkg -i pandoc-3.12-1-amd64.deb
+          wget -q https://github.com/jgm/pandoc/releases/download/3.12.1/pandoc-3.12.1-1-amd64.deb
+          sudo dpkg -i pandoc-3.12.1-1-amd64.deb
           pandoc --version | head -1
 
       - name: Install dependencies
