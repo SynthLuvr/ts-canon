@@ -1,6 +1,8 @@
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { runPandoc } from "../lib/pandoc-md.ts";
+import type { CanonConfig } from "../lib/rules-config.ts";
+import { emptyConfig, loadConfig } from "../lib/rules-config.ts";
 import type { Step } from "../lib/runner.ts";
 import {
   resolveBin,
@@ -10,7 +12,7 @@ import {
   runSequence,
 } from "../lib/runner.ts";
 import { sourceGlob } from "../lib/source-glob.ts";
-import { resolvePaths, rootFor } from "./lint.ts";
+import { LINT_RULES, resolvePaths, rootFor } from "./lint.ts";
 
 type FormatOptions = { paths?: string[] };
 
@@ -55,6 +57,17 @@ const runFormat = async (options: FormatOptions = {}): Promise<number> => {
   const paths = resolvePaths(options.paths);
   const root = rootFor(paths[0]);
 
+  // A bad ts-canon.json fails the run with its message instead of a
+  // stack, before any tool spawns — the same contract as lint, so the
+  // pandoc step never runs with the wrong scope.
+  let config: CanonConfig = emptyConfig();
+  try {
+    config = loadConfig(root, LINT_RULES);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 2;
+  }
+
   const hasTsconfig = existsSync(join(root, "tsconfig.json"));
   if (!hasTsconfig)
     console.log("> skipped convert-to-arrow (no tsconfig.json)");
@@ -74,7 +87,11 @@ const runFormat = async (options: FormatOptions = {}): Promise<number> => {
       name: "biome check",
       run: () => runBiome(["check", "--write"], paths, root),
     },
-    { name: "pandoc", run: () => Promise.resolve(runPandoc(root, "write")) },
+    {
+      name: "pandoc",
+      run: () =>
+        Promise.resolve(runPandoc(root, "write", config.pandoc.ignores)),
+    },
   );
 
   return runSequence(steps);

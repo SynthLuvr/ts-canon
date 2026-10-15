@@ -358,6 +358,51 @@ describe("no-unsafe-cast via ts-canon.json", () => {
   );
 });
 
+describe("pandoc ignores via ts-canon.json", () => {
+  // Same fixture shape as the scoping tests above: runFormat is expected
+  // to rewrite README.md (not ignored) while the ignored CHANGELOG.md
+  // keeps its exact bytes, then lint — pandoc check included — passes.
+  it.skipIf(!pandocAvailable())(
+    "excludes an ignored markdown file from format and lint",
+    async () => {
+      const [root, cleanup] = buildMiniRepo();
+      const drifted = "#   Changelog\n\nRough   spacing\n";
+      writeFixture(root, "CHANGELOG.md", drifted);
+      writeFixture(
+        root,
+        "ts-canon.json",
+        '{ "pandoc": { "ignores": ["CHANGELOG.md"] } }\n',
+      );
+      try {
+        expect(await runFormat({ paths: [root] })).toBe(0);
+        expect(readFileSync(join(root, "README.md"), "utf8")).toBe(
+          "# Mini repo\n\nSome text\n",
+        );
+        expect(readFileSync(join(root, "CHANGELOG.md"), "utf8")).toBe(drifted);
+        expect(await runLint({ paths: [root], fast: true })).toBe(0);
+      } finally {
+        cleanup();
+      }
+    },
+    600_000,
+  );
+
+  it.skipIf(!pandocAvailable())(
+    "fails with exit 2 on an invalid pandoc section",
+    async () => {
+      const [root, cleanup] = buildMiniRepo();
+      writeFixture(root, "ts-canon.json", '{ "pandoc": { "ignore": [] } }\n');
+      try {
+        expect(await runLint({ paths: [root], fast: true })).toBe(2);
+        expect(await runFormat({ paths: [root] })).toBe(2);
+      } finally {
+        cleanup();
+      }
+    },
+    600_000,
+  );
+});
+
 describe("fixture mini repo", () => {
   it.skipIf(!pandocAvailable())(
     "lint fails, format fixes, lint passes",
