@@ -359,9 +359,6 @@ describe("no-unsafe-cast via ts-canon.json", () => {
 });
 
 describe("pandoc ignores via ts-canon.json", () => {
-  // Same fixture shape as the scoping tests above: runFormat is expected
-  // to rewrite README.md (not ignored) while the ignored CHANGELOG.md
-  // keeps its exact bytes, then lint — pandoc check included — passes.
   it.skipIf(!pandocAvailable())(
     "excludes an ignored markdown file from format and lint",
     async () => {

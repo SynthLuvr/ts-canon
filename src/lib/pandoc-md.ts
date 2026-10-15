@@ -59,36 +59,30 @@ const compileGlob = (glob: string): RegExp => {
   return new RegExp(`^${source}$`);
 };
 
-/**
- * `globs` as one predicate: a path is excluded when any glob matches
- * it, so the walk below can prune ignored directories and skip ignored
- * files with the same test. An empty list excludes nothing.
- */
+/** Excludes a path when any glob matches it; no globs excludes nothing. */
 const ignoreMatcher = (globs: readonly string[]): IgnoreTest => {
   const patterns = globs.map(compileGlob);
   return (relPath) => patterns.some((pattern) => pattern.test(relPath));
 };
 
 /**
- * Collects `*.md` files under `dir`, sorted, skipping any file — or
- * pruning any directory — whose root-relative path `isIgnored`
- * accepts. Symlinks are skipped: pnpm workspace links can form cycles
- * that would loop this walk forever.
+ * Collects `*.md` files under `dir`, sorted, excluding any path
+ * `isIgnored` accepts — a directory match prunes everything beneath
+ * it. Symlinks are skipped: pnpm workspace links can form cycles that
+ * would loop this walk forever.
  */
-const findMarkdown = (dir: string, isIgnored?: IgnoreTest): string[] => {
+const findMarkdown = (
+  dir: string,
+  isIgnored: IgnoreTest = () => false,
+): string[] => {
   const files: string[] = [];
   const walk = (current: string, relDir: string): void => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       if (SKIP_PARTS.has(entry.name) || entry.isSymbolicLink()) continue;
       const rel = relDir === "" ? entry.name : `${relDir}/${entry.name}`;
-      if (entry.isDirectory()) {
-        if (isIgnored === undefined || !isIgnored(rel))
-          walk(join(current, entry.name), rel);
-      } else if (
-        entry.isFile() &&
-        entry.name.endsWith(".md") &&
-        (isIgnored === undefined || !isIgnored(rel))
-      )
+      if (isIgnored(rel)) continue;
+      if (entry.isDirectory()) walk(join(current, entry.name), rel);
+      else if (entry.isFile() && entry.name.endsWith(".md"))
         files.push(join(current, entry.name));
     }
   };
@@ -178,7 +172,6 @@ const runPandoc = (
   return 1;
 };
 
-export type { IgnoreTest };
 export {
   findMarkdown,
   ignoreMatcher,

@@ -2,7 +2,7 @@ import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { runPandoc } from "../lib/pandoc-md.ts";
 import type { CanonConfig } from "../lib/rules-config.ts";
-import { emptyConfig, loadConfig } from "../lib/rules-config.ts";
+import { loadConfig } from "../lib/rules-config.ts";
 import type { Step } from "../lib/runner.ts";
 import {
   resolveBin,
@@ -57,10 +57,9 @@ const runFormat = async (options: FormatOptions = {}): Promise<number> => {
   const paths = resolvePaths(options.paths);
   const root = rootFor(paths[0]);
 
-  // A bad ts-canon.json fails the run with its message instead of a
-  // stack, before any tool spawns — the same contract as lint, so the
-  // pandoc step never runs with the wrong scope.
-  let config: CanonConfig = emptyConfig();
+  // Same contract as lint: a bad ts-canon.json exits 2 with its
+  // message before any tool spawns.
+  let config: CanonConfig;
   try {
     config = loadConfig(root, LINT_RULES);
   } catch (error) {

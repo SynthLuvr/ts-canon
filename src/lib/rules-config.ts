@@ -19,10 +19,8 @@ type RuleOverride = "off" | RuleScope;
 
 /**
  * The `pandoc` section of `ts-canon.json`: `ignores` holds
- * gitignore-style exclude globs (see `ignoreMatcher` in
- * `src/lib/pandoc-md.ts`) over paths relative to the config root.
- * Matched markdown files keep their exact bytes through `format` and
- * `lint` alike.
+ * gitignore-style exclude globs, and matched markdown files keep
+ * their exact bytes through `format` and `lint` alike.
  */
 type PandocConfig = { ignores: string[] };
 
@@ -75,18 +73,15 @@ const asPandocConfig = (value: unknown): PandocConfig => {
     throw new Error(
       `pandoc: expected { ignores? }, got ${JSON.stringify(value)}`,
     );
-  const config: PandocConfig = { ignores: [] };
-  for (const [key, entry] of Object.entries(value)) {
+  for (const key of Object.keys(value))
     if (key !== "ignores") throw new Error(`pandoc: unknown field "${key}"`);
-    const globs = asGlobList(entry, "pandoc.ignores");
-    for (const glob of globs)
-      if (glob.startsWith("!"))
-        throw new Error(
-          `pandoc.ignores: negation is not supported, got "${glob}"`,
-        );
-    config.ignores = globs;
-  }
-  return config;
+  const globs = asGlobList(value.ignores ?? [], "pandoc.ignores");
+  const negated = globs.find((glob) => glob.startsWith("!"));
+  if (negated !== undefined)
+    throw new Error(
+      `pandoc.ignores: negation is not supported, got "${negated}"`,
+    );
+  return { ignores: globs };
 };
 
 /** Validates the `rules` map, rejecting ids that match no shipped rule. */
@@ -136,5 +131,5 @@ const loadConfig = (
   return config;
 };
 
-export type { CanonConfig, PandocConfig, RuleOverride, RuleScope };
-export { emptyConfig, loadConfig };
+export type { CanonConfig, RuleOverride, RuleScope };
+export { loadConfig };

@@ -3,8 +3,12 @@ import { dirname, join, resolve } from "node:path";
 import { runOxlint } from "../lib/oxlint.ts";
 import { runPandoc } from "../lib/pandoc-md.ts";
 import { pnpmCommand, pnpmPeersCheck } from "../lib/peer-deps.ts";
-import type { RuleOverride, RuleScope } from "../lib/rules-config.ts";
-import { emptyConfig, loadConfig } from "../lib/rules-config.ts";
+import type {
+  CanonConfig,
+  RuleOverride,
+  RuleScope,
+} from "../lib/rules-config.ts";
+import { loadConfig } from "../lib/rules-config.ts";
 import type { Step } from "../lib/runner.ts";
 import {
   resolveBin,
@@ -116,7 +120,7 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
   // A bad ts-canon.json fails the run with its message instead of a
   // stack, before any tool spawns: every rule below would otherwise
   // run with the wrong scope.
-  let config = emptyConfig();
+  let config: CanonConfig;
   try {
     config = loadConfig(root, LINT_RULES);
   } catch (error) {
