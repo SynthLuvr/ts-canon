@@ -3,8 +3,12 @@ import { dirname, join, resolve } from "node:path";
 import { runOxlint } from "../lib/oxlint.ts";
 import { runPandoc } from "../lib/pandoc-md.ts";
 import { pnpmCommand, pnpmPeersCheck } from "../lib/peer-deps.ts";
-import type { RuleOverride, RuleScope } from "../lib/rules-config.ts";
-import { loadRulesConfig } from "../lib/rules-config.ts";
+import type {
+  CanonConfig,
+  RuleOverride,
+  RuleScope,
+} from "../lib/rules-config.ts";
+import { loadConfig } from "../lib/rules-config.ts";
 import type { Step } from "../lib/runner.ts";
 import {
   resolveBin,
@@ -116,9 +120,9 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
   // A bad ts-canon.json fails the run with its message instead of a
   // stack, before any tool spawns: every rule below would otherwise
   // run with the wrong scope.
-  let overrides: Record<string, RuleOverride> = {};
+  let config: CanonConfig;
   try {
-    overrides = loadRulesConfig(root, LINT_RULES);
+    config = loadConfig(root, LINT_RULES);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     return 2;
@@ -130,8 +134,12 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
       name: "oxlint",
       run: () => runOxlint(["--deny-warnings", ...paths], root),
     },
-    ...ruleSteps(paths, root, overrides),
-    { name: "pandoc", run: () => Promise.resolve(runPandoc(root, "check")) },
+    ...ruleSteps(paths, root, config.rules),
+    {
+      name: "pandoc",
+      run: () =>
+        Promise.resolve(runPandoc(root, "check", config.pandoc.ignores)),
+    },
   ];
   if (hasLockfile)
     steps.push({
@@ -165,7 +173,7 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
     });
 
   const skipped: string[] = LINT_RULES.filter(
-    (id) => overrides[id] === "off",
+    (id) => config.rules[id] === "off",
   ).map((id) => `ast-grep:${id} (off in ts-canon.json)`);
   if (!hasLockfile) skipped.push("peer-deps (no pnpm-lock.yaml)");
   if (fast) skipped.push("audit (--fast)", "jscpd (--fast)");

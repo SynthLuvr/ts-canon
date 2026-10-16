@@ -93,7 +93,7 @@ errors and to keep shape checking with what actually verifies, type
 validation libraries such as arktype. Validate instead — a schema at
 data boundaries, a typeof/instanceof narrowing elsewhere. `as const` is
 allowed (compile-time literal tightening, no runtime claim). Three
-escape hatches, broadest to narrowest:
+escape hatches for the ast-grep rules, broadest to narrowest:
 
 **Per directory or file — `ts-canon.json`.** Drop a config at the root
 you lint (the repo root, or the package directory in a scoped
@@ -133,6 +133,27 @@ A bare `ast-grep-ignore` suppresses every rule on that line; the
 one rule cannot mask another. This is ast-grep behavior, not ts-canon’s
 — the same comments work in bare `ast-grep scan` and the editor
 integrations.
+
+**Excluding markdown — `pandoc.ignores`.** The pandoc step formats and
+checks every `*.md` file under the root; generated or vendored markdown
+sometimes must keep its exact bytes. Same config file, a `pandoc`
+section:
+
+``` json
+{
+  "pandoc": {
+    "ignores": ["CHANGELOG.md", "docs/generated/**"]
+  }
+}
+```
+
+Globs are gitignore-style over `/`-separated paths relative to the
+config root: one with no `/` matches the basename at any depth,
+otherwise it is anchored at the root; a trailing `/`, or any directory a
+glob matches, excludes everything beneath it; `**` spans whole path
+segments. Ignored files are skipped by both `format` and `lint`.
+Negation (`!`) is rejected rather than ignored, so a `!`-prefixed entry
+fails the run instead of quietly matching nothing.
 
 ## What you get
 

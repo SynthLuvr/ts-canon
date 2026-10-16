@@ -2,6 +2,19 @@
 
 Notable changes to ts-canon, newest first — one section per release.
 
+## Unreleased
+
+New config option; no breaking API or default-behavior changes.
+
+### Added
+
+- `pandoc.ignores` in `ts-canon.json`: gitignore-style exclude globs
+  that keep markdown files out of the pandoc format and lint steps — for
+  generated or vendored markdown that must keep its exact bytes.
+  `ts-canon format` now reads `ts-canon.json` too, and an invalid file
+  fails it with exit 2 before any tool spawns, the contract `lint`
+  always had.
+
 ## 0.2.0
 
 New feature plus a new default lint behavior; no breaking API or

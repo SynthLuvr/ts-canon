@@ -7,18 +7,87 @@ const SKIP_PARTS = new Set(["node_modules", ".git"]);
 const PANDOC_MISSING =
   "pandoc was not found on PATH. Install pandoc (>= 3.10) and retry.";
 
+/** A path predicate over `/`-separated paths relative to a walk root. */
+type IgnoreTest = (relPath: string) => boolean;
+
+/** One literal character's regex source, metacharacters escaped. */
+const escapeLiteral = (char: string): string =>
+  char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
- * Collects `*.md` files under `dir`, sorted. Symlinks are skipped: pnpm
- * workspace links can form cycles that would loop this walk forever.
+ * Regex source for one glob segment: `*` and `?` never cross a `/`, a
+ * backslash escapes the next character, everything else is literal.
  */
-const findMarkdown = (dir: string, acc: string[] = []): string[] => {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (SKIP_PARTS.has(entry.name) || entry.isSymbolicLink()) continue;
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) findMarkdown(full, acc);
-    else if (entry.isFile() && entry.name.endsWith(".md")) acc.push(full);
+const segmentSource = (segment: string): string => {
+  let source = "";
+  for (let index = 0; index < segment.length; index++) {
+    const char = segment[index];
+    if (char === "\\" && index + 1 < segment.length) {
+      source += escapeLiteral(segment[index + 1]);
+      index += 1;
+    } else if (char === "*") source += "[^/]*";
+    else if (char === "?") source += "[^/]";
+    else source += escapeLiteral(char);
   }
-  return acc.sort();
+  return source;
+};
+
+/**
+ * One exclude glob as an anchored regex over a `/`-separated path
+ * relative to the config root, following gitignore's semantics: a
+ * pattern with no `/` matches the basename at any depth, anything else
+ * is anchored at the root; a trailing `/` covers the directory itself
+ * and everything beneath it; and a whole `**` segment spans zero or
+ * more whole segments.
+ */
+const compileGlob = (glob: string): RegExp => {
+  const stripped = glob.replace(/\/+$/, "");
+  const directory = stripped !== glob;
+  const segments = stripped.split("/");
+  let source = stripped.includes("/") ? "" : "(?:[^/]+/)*";
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index];
+    const last = index === segments.length - 1;
+    if (segment === "**") {
+      source += last ? ".*" : "(?:[^/]+/)*";
+      continue;
+    }
+    source += segmentSource(segment);
+    if (!last) source += "/";
+  }
+  if (directory) source += "(?:/.*)?";
+  return new RegExp(`^${source}$`);
+};
+
+/** Excludes a path when any glob matches it; no globs excludes nothing. */
+const ignoreMatcher = (globs: readonly string[]): IgnoreTest => {
+  const patterns = globs.map(compileGlob);
+  return (relPath) => patterns.some((pattern) => pattern.test(relPath));
+};
+
+/**
+ * Collects `*.md` files under `dir`, sorted, excluding any path
+ * `isIgnored` accepts — a directory match prunes everything beneath
+ * it. Symlinks are skipped: pnpm workspace links can form cycles that
+ * would loop this walk forever.
+ */
+const findMarkdown = (
+  dir: string,
+  isIgnored: IgnoreTest = () => false,
+): string[] => {
+  const files: string[] = [];
+  const walk = (current: string, relDir: string): void => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      if (SKIP_PARTS.has(entry.name) || entry.isSymbolicLink()) continue;
+      const rel = relDir === "" ? entry.name : `${relDir}/${entry.name}`;
+      if (isIgnored(rel)) continue;
+      if (entry.isDirectory()) walk(join(current, entry.name), rel);
+      else if (entry.isFile() && entry.name.endsWith(".md"))
+        files.push(join(current, entry.name));
+    }
+  };
+  walk(dir, "");
+  return files.sort();
 };
 
 /**
@@ -55,11 +124,19 @@ type PandocMode = "check" | "write";
 
 /**
  * Checks or rewrites every markdown file under `root` to canonical
- * GitHub-Flavored Markdown, making pandoc the single source of truth for
- * Markdown formatting. Returns a process exit code.
+ * GitHub-Flavored Markdown, making pandoc the single source of truth
+ * for Markdown formatting. Files whose root-relative path matches an
+ * `ignores` glob (gitignore syntax, compiled by `ignoreMatcher`
+ * above) keep their exact bytes — for generated or vendored markdown.
+ * Returns a process exit code.
  */
-const runPandoc = (root: string, mode: PandocMode): number => {
-  const files = findMarkdown(root);
+const runPandoc = (
+  root: string,
+  mode: PandocMode,
+  ignores: readonly string[] = [],
+): number => {
+  const isIgnored = ignores.length === 0 ? undefined : ignoreMatcher(ignores);
+  const files = findMarkdown(root, isIgnored);
   const drifted: string[] = [];
 
   for (const file of files) {
@@ -95,4 +172,11 @@ const runPandoc = (root: string, mode: PandocMode): number => {
   return 1;
 };
 
-export { findMarkdown, PANDOC_MISSING, pandocFormat, pandocVersion, runPandoc };
+export {
+  findMarkdown,
+  ignoreMatcher,
+  PANDOC_MISSING,
+  pandocFormat,
+  pandocVersion,
+  runPandoc,
+};
