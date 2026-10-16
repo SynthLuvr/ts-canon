@@ -2,7 +2,7 @@
 
 Notable changes to ts-canon, newest first — one section per release.
 
-## Unreleased
+## 0.3.0
 
 New config option; no breaking API or default-behavior changes.
 
@@ -14,6 +14,13 @@ New config option; no breaking API or default-behavior changes.
   `ts-canon format` now reads `ts-canon.json` too, and an invalid file
   fails it with exit 2 before any tool spawns, the contract `lint`
   always had.
+
+### Changed
+
+- Refreshed the bundled toolchain: `@ast-grep/cli` 0.45.3 → 0.50.0,
+  `oxlint` 1.85.0 → 1.87.0, `jscpd` 5.3.2 → 5.4.1, `@biomejs/biome`
+  2.5.14 → 2.5.15, `oxlint-tsgolint` → 7.0.2004, and the pinned
+  `packageManager` pnpm 12.6.0 → 12.11.2.
 
 ## 0.2.0
 
