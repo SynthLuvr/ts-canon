@@ -25,9 +25,8 @@ type FormatOptions = { paths?: string[] };
  */
 const arrowsArgs = (paths: string[], root: string): string[] | undefined => {
   if (paths.length !== 1 || paths[0].includes("*")) return paths;
-  // The argument is stat'ed, not the spawn root: a file argument's root
-  // is already its parent directory (see rootFor), but only a directory
-  // argument is rescoped — a file keeps the codemod's passthrough.
+  // Stat the argument, not `root`: a file argument's root is already
+  // its parent (see rootFor), and only a directory argument is rescoped.
   const stats = statSync(paths[0], { throwIfNoEntry: false });
   if (stats === undefined || !stats.isDirectory()) return paths;
   const glob = sourceGlob(root);
@@ -74,9 +73,6 @@ const runFormat = async (options: FormatOptions = {}): Promise<number> => {
   if (!hasTsconfig)
     console.log("> skipped convert-to-arrow (no tsconfig.json)");
 
-  // Markdown file arguments are pandoc's alone; biome refuses an
-  // all-out-of-scope list ("no files processed" is a format error), so
-  // the biome steps run over the non-markdown paths or skip entirely.
   const biomePaths = withoutMarkdown(paths);
   if (biomePaths.length === 0)
     console.log("> skipped biome format, biome check (only markdown paths)");

@@ -138,8 +138,7 @@ describe("rootFor", () => {
   it("spawns a plain file argument from its parent directory", () => {
     const file = join(packageRoot(), "src", "bin", "lint.ts");
     expect(rootFor(file)).toBe(join(packageRoot(), "src", "bin"));
-    // Missing wildcard-free paths keep the verbatim value and fail at
-    // the spawn stage instead.
+    // A missing wildcard-free path stays verbatim and fails later, at the spawn.
     expect(rootFor(join(packageRoot(), "no-such-file.ts"))).toBe(
       join(packageRoot(), "no-such-file.ts"),
     );
@@ -586,8 +585,8 @@ describe("fixture mini repo", () => {
     120_000,
   );
 
-  // Regression for #40: a plain file argument used to be handed to the
-  // tools as their spawn cwd, and chdir into a regular file fails with
+  // Regression for #40: a plain file argument was handed to the tools
+  // as their spawn cwd, and chdir into a regular file fails with
   // ENOTDIR before the child exists, crashing lint and format with a
   // raw stack. A file argument now runs from its parent directory.
   it.skipIf(!pandocAvailable())(
@@ -595,8 +594,9 @@ describe("fixture mini repo", () => {
     async () => {
       const [root, cleanup] = buildMiniRepo();
       try {
-        // A clean file lints to 0 by plain path (oxlint covers it;
-        // pandoc checks the parent directory, which holds no markdown).
+        // Format the fixture clean first; a clean file then lints to 0
+        // by plain path (oxlint covers it, pandoc checks the parent
+        // directory, which holds no markdown).
         await runFormat({ paths: [root] });
         expect(
           await runLint({

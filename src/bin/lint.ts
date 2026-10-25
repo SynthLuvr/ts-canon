@@ -54,7 +54,7 @@ const resolvePaths = (paths?: string[]): string[] =>
  * the spawn with ENOTDIR before the child exists. Biome discovers its
  * config here, the pandoc step walks it, and the pnpm steps look for
  * the lockfile at it. Missing paths keep the verbatim value and fail
- * later at the spawn, now as a reported error instead of a stack.
+ * later at the spawn — as a reported error, not a stack.
  */
 const rootFor = (path: string): string => {
   const cut = path.search(/[*?{[]/);
@@ -67,13 +67,13 @@ const rootFor = (path: string): string => {
 };
 
 /**
- * Explicit path arguments minus markdown files. The preset keeps
- * markdown out of the tools' scope (pandoc owns it), and the tools
- * disagree on an all-out-of-scope argument list: `biome check` passes,
- * while `biome format` and `oxlint` fail with "no files processed".
- * The TypeScript-tool steps therefore drop markdown file arguments and
- * skip themselves when nothing remains; directory and glob arguments
- * pass through so the tools scope those themselves.
+ * Path arguments minus markdown files. The preset keeps markdown out
+ * of the TypeScript tools' scope (pandoc owns it), and the tools
+ * disagree on an all-out-of-scope list: `biome check` passes while
+ * `biome format` and `oxlint` fail with "no files processed" — so
+ * those steps drop markdown file arguments and skip themselves when
+ * nothing remains. Directory and glob arguments pass through for the
+ * tools to scope themselves.
  */
 const withoutMarkdown = (paths: string[]): string[] =>
   paths.filter((path) => !path.endsWith(".md"));
@@ -135,8 +135,6 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
   const root = rootFor(paths[0]);
   const fast = options.fast === true;
   const hasLockfile = existsSync(join(root, "pnpm-lock.yaml"));
-  // oxlint covers only the non-markdown paths; with none left the
-  // step skips rather than fail its "no files to lint" exit.
   const oxlintPaths = withoutMarkdown(paths);
 
   // A bad ts-canon.json fails the run with its message instead of a
@@ -158,7 +156,8 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
       name: "oxlint",
       run: () => runOxlint(["--deny-warnings", ...oxlintPaths], root),
     });
-  steps.push(...ruleSteps(paths, root, config.rules), {
+  steps.push(...ruleSteps(paths, root, config.rules));
+  steps.push({
     name: "pandoc",
     run: () => Promise.resolve(runPandoc(root, "check", config.pandoc.ignores)),
   });

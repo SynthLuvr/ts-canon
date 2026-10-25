@@ -103,9 +103,29 @@ const reportFailure = (file: string, error: unknown): void => {
 
 /**
  * Spawns a resolved tool by absolute path — under the current node when it
- * is a JS entry point, directly when it is a native executable — and
- * resolves to the child's exit code. Mirrors the spawn discipline of the
- * ported `peer-deps`/`oxlint` scripts: no shell, no PATH lookup, no shims.
+ * is a JS entry point, directly when it is a native executable —
+ * mirroring the spawn discipline of the ported `peer-deps`/`oxlint`
+ * scripts: no shell, no PATH lookup, no shims.
+ */
+const spawnTool = (
+  file: string,
+  args: string[],
+  cwd: string | undefined,
+): ChildProcess => {
+  const underNode = entryKind(file) === "node";
+  return spawn(
+    underNode ? process.execPath : file,
+    underNode ? [file, ...args] : args,
+    { stdio: "inherit", cwd },
+  );
+};
+
+/**
+ * Runs a spawned tool to completion and resolves to its exit code. Any
+ * spawn failure — including the synchronous throw of an unusable cwd or
+ * an unloadable entry, which happens before a child exists and so can
+ * never reach its "error" event — is reported as the CLI's own message
+ * and resolved as 1 instead of crashing with a raw stack.
  */
 const runCommand = (
   file: string,
@@ -113,28 +133,17 @@ const runCommand = (
   options: { cwd?: string } = {},
 ): Promise<number> =>
   new Promise((resolve) => {
-    const kind = entryKind(file);
-    let child: ChildProcess;
+    const fail = (error: unknown): void => {
+      reportFailure(file, error);
+      resolve(1);
+    };
     try {
-      child = spawn(
-        kind === "node" ? process.execPath : file,
-        kind === "node" ? [file, ...args] : args,
-        { stdio: "inherit", cwd: options.cwd },
-      );
+      const child = spawnTool(file, args, options.cwd);
+      child.on("error", fail);
+      child.on("close", (code) => resolve(code ?? 1));
     } catch (error) {
-      // A unusable cwd (or an unloadable executable) makes spawn throw
-      // synchronously — before a ChildProcess exists, so the "error"
-      // event wired below can never fire. Report it the same way and
-      // resolve 1 instead of crashing the CLI with a raw stack.
-      reportFailure(file, error);
-      resolve(1);
-      return;
+      fail(error);
     }
-    child.on("error", (error) => {
-      reportFailure(file, error);
-      resolve(1);
-    });
-    child.on("close", (code) => resolve(code ?? 1));
   });
 
 /**
