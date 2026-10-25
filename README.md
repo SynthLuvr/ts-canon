@@ -155,6 +155,13 @@ segments. Ignored files are skipped by both `format` and `lint`.
 Negation (`!`) is rejected rather than ignored, so a `!`-prefixed entry
 fails the run instead of quietly matching nothing.
 
+Markdown belongs to pandoc alone, and the shipped preset already
+enforces that: `presets/biome.preset.json` excludes `!**/*.md` from
+biome’s formatter and linter scope. Without the exclusion, a biome
+release with markdown formatting (2.6.0+) would restyle pandoc’s
+canonical GFM — fence spacing, emphasis markers, table padding — and
+`lint` would fail on files `format` had just “fixed”, forever.
+
 ## What you get
 
 - `presets/biome.preset.json` — the canonical biome config; keep a local
@@ -178,7 +185,9 @@ fails the run instead of quietly matching nothing.
 - Bundled as direct dependencies: biome, oxlint, oxlint-tsgolint,
   `@ast-grep/cli`, convert-to-arrow, jscpd, npm-run-all2. Peer
   dependency ranges would reintroduce the drift this package exists to
-  kill.
+  kill. `@biomejs/biome` is pinned to an exact version — a `^` range
+  floated fresh installs onto biome 2.6.x, whose new markdown formatter
+  fought the pandoc step.
 
 Two deliberate exceptions stay on your side:
 

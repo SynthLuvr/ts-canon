@@ -1,6 +1,43 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-
 import { vitestPreset } from "../../presets/vitest.mjs";
+import { packageRoot } from "../lib/runner.ts";
+
+/**
+ * Pandoc owns `*.md` — it formats and checks markdown byte-for-byte —
+ * so the preset must keep markdown out of biome's scope: biome 2.6's
+ * markdown formatter disagrees with pandoc's canonical GFM, and without
+ * the exclusions `lint` fails on files `format` just rewrote.
+ */
+describe("presets/biome.preset.json", () => {
+  const preset = JSON.parse(
+    readFileSync(join(packageRoot(), "presets", "biome.preset.json"), "utf8"),
+  ) as {
+    formatter?: { includes?: string[] };
+    linter?: { includes?: string[] };
+  };
+  const manifest = JSON.parse(
+    readFileSync(join(packageRoot(), "package.json"), "utf8"),
+  ) as { dependencies?: Record<string, string> };
+
+  it("excludes markdown from the formatter scope", () => {
+    expect(preset.formatter?.includes).toContain("!**/*.md");
+  });
+
+  it("excludes markdown from the linter scope", () => {
+    expect(preset.linter?.includes).toContain("!**/*.md");
+  });
+
+  /**
+   * The bundled biome moves only through a reviewed ts-canon release: a
+   * `^` range once floated fresh installs onto 2.6.x, whose restyled
+   * output (markdown, YAML) broke consumers' lint.
+   */
+  it("pins biome to an exact version", () => {
+    expect(manifest.dependencies?.["@biomejs/biome"]).toMatch(/^\d/);
+  });
+});
 
 /**
  * `presets/vitest.mjs` ships compiled (with `vitest.d.mts` types): node
