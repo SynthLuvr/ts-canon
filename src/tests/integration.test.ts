@@ -134,6 +134,16 @@ describe("rootFor", () => {
     expect(rootFor(join(src, "lib", "**", "*.ts"))).toBe(join(src, "lib"));
     expect(rootFor("src/**/*.ts")).toBe("src");
   });
+
+  it("spawns a plain file argument from its parent directory", () => {
+    const file = join(packageRoot(), "src", "bin", "lint.ts");
+    expect(rootFor(file)).toBe(join(packageRoot(), "src", "bin"));
+    // Missing wildcard-free paths keep the verbatim value and fail at
+    // the spawn stage instead.
+    expect(rootFor(join(packageRoot(), "no-such-file.ts"))).toBe(
+      join(packageRoot(), "no-such-file.ts"),
+    );
+  });
 });
 
 describe("ast-grep lint rules (package-relative --rule)", () => {
@@ -574,5 +584,47 @@ describe("fixture mini repo", () => {
       }
     },
     120_000,
+  );
+
+  // Regression for #40: a plain file argument used to be handed to the
+  // tools as their spawn cwd, and chdir into a regular file fails with
+  // ENOTDIR before the child exists, crashing lint and format with a
+  // raw stack. A file argument now runs from its parent directory.
+  it.skipIf(!pandocAvailable())(
+    "lint and format accept a plain file argument",
+    async () => {
+      const [root, cleanup] = buildMiniRepo();
+      try {
+        // A clean file lints to 0 by plain path (oxlint covers it;
+        // pandoc checks the parent directory, which holds no markdown).
+        await runFormat({ paths: [root] });
+        expect(
+          await runLint({
+            paths: [join(root, "src", "index.ts")],
+            fast: true,
+          }),
+        ).toBe(0);
+
+        // A drifted markdown file by plain path is fixed, not crashed
+        // on: the biome steps skip (markdown is out of their scope) and
+        // pandoc rewrites the file.
+        writeFixture(root, "docs/notes.md", "#   Notes\n\nRough   spacing\n");
+        expect(
+          await runFormat({ paths: [join(root, "docs", "notes.md")] }),
+        ).toBe(0);
+        expect(readFileSync(join(root, "docs", "notes.md"), "utf8")).toBe(
+          "# Notes\n\nRough spacing\n",
+        );
+        expect(
+          await runLint({
+            paths: [join(root, "docs", "notes.md")],
+            fast: true,
+          }),
+        ).toBe(0);
+      } finally {
+        cleanup();
+      }
+    },
+    600_000,
   );
 });

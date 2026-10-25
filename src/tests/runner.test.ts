@@ -100,6 +100,24 @@ describe("runCommand", () => {
   it("resolves to 1 when the entry cannot be spawned", async () => {
     expect(await runCommand("/nonexistent/ts-canon-tool", [])).toBe(1);
   }, 30_000);
+
+  // Regression for #40: a regular file as cwd made spawn throw
+  // synchronously — before a ChildProcess exists, so the "error" event
+  // could not fire and the CLI crashed with a raw stack. The throw is
+  // now reported and resolved like any spawn failure.
+  it("resolves to 1 when the cwd is not a directory", async () => {
+    const [dir, cleanup] = withTempDir();
+    try {
+      const file = writeFixture(dir, "index.ts", "const a = 1;\n");
+      expect(
+        await runCommand(resolveBin("@biomejs/biome", "biome"), ["check"], {
+          cwd: file,
+        }),
+      ).toBe(1);
+    } finally {
+      cleanup();
+    }
+  }, 30_000);
 });
 
 describe("runSequence", () => {

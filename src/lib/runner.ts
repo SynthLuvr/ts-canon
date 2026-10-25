@@ -1,3 +1,4 @@
+import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import {
   closeSync,
@@ -91,6 +92,15 @@ const entryKind = (file: string): EntryKind => {
   return "direct";
 };
 
+/** Reports a tool that could not be spawned, as the CLI's own message. */
+const reportFailure = (file: string, error: unknown): void => {
+  console.error(
+    `ts-canon: failed to run ${file}: ${
+      error instanceof Error ? error.message : String(error)
+    }`,
+  );
+};
+
 /**
  * Spawns a resolved tool by absolute path — under the current node when it
  * is a JS entry point, directly when it is a native executable — and
@@ -104,13 +114,24 @@ const runCommand = (
 ): Promise<number> =>
   new Promise((resolve) => {
     const kind = entryKind(file);
-    const child = spawn(
-      kind === "node" ? process.execPath : file,
-      kind === "node" ? [file, ...args] : args,
-      { stdio: "inherit", cwd: options.cwd },
-    );
+    let child: ChildProcess;
+    try {
+      child = spawn(
+        kind === "node" ? process.execPath : file,
+        kind === "node" ? [file, ...args] : args,
+        { stdio: "inherit", cwd: options.cwd },
+      );
+    } catch (error) {
+      // A unusable cwd (or an unloadable executable) makes spawn throw
+      // synchronously — before a ChildProcess exists, so the "error"
+      // event wired below can never fire. Report it the same way and
+      // resolve 1 instead of crashing the CLI with a raw stack.
+      reportFailure(file, error);
+      resolve(1);
+      return;
+    }
     child.on("error", (error) => {
-      console.error(`ts-canon: failed to run ${file}: ${error.message}`);
+      reportFailure(file, error);
       resolve(1);
     });
     child.on("close", (code) => resolve(code ?? 1));

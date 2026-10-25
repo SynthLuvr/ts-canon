@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { runOxlint } from "../lib/oxlint.ts";
 import { runPandoc } from "../lib/pandoc-md.ts";
@@ -48,16 +48,35 @@ const resolvePaths = (paths?: string[]): string[] =>
 /**
  * The directory the tools run from: the first path itself, or — for a
  * glob argument — the deepest directory before its first wildcard,
- * since a pattern is no directory to spawn in. Biome discovers its
+ * since a pattern is no directory to spawn in. A wildcard-free path
+ * that names an existing file resolves to the file's parent directory:
+ * every step spawns with `cwd: root`, and a regular file as cwd fails
+ * the spawn with ENOTDIR before the child exists. Biome discovers its
  * config here, the pandoc step walks it, and the pnpm steps look for
- * the lockfile at it.
+ * the lockfile at it. Missing paths keep the verbatim value and fail
+ * later at the spawn, now as a reported error instead of a stack.
  */
 const rootFor = (path: string): string => {
   const cut = path.search(/[*?{[]/);
-  if (cut === -1) return path;
+  if (cut === -1) {
+    const stats = statSync(path, { throwIfNoEntry: false });
+    return stats?.isFile() === true ? dirname(path) : path;
+  }
   const prefix = path.slice(0, cut);
   return /[\\/]$/.test(prefix) ? prefix.slice(0, -1) : dirname(prefix);
 };
+
+/**
+ * Explicit path arguments minus markdown files. The preset keeps
+ * markdown out of the tools' scope (pandoc owns it), and the tools
+ * disagree on an all-out-of-scope argument list: `biome check` passes,
+ * while `biome format` and `oxlint` fail with "no files processed".
+ * The TypeScript-tool steps therefore drop markdown file arguments and
+ * skip themselves when nothing remains; directory and glob arguments
+ * pass through so the tools scope those themselves.
+ */
+const withoutMarkdown = (paths: string[]): string[] =>
+  paths.filter((path) => !path.endsWith(".md"));
 
 /**
  * The `--globs` flags a rule's `ts-canon.json` scope contributes.
@@ -116,6 +135,9 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
   const root = rootFor(paths[0]);
   const fast = options.fast === true;
   const hasLockfile = existsSync(join(root, "pnpm-lock.yaml"));
+  // oxlint covers only the non-markdown paths; with none left the
+  // step skips rather than fail its "no files to lint" exit.
+  const oxlintPaths = withoutMarkdown(paths);
 
   // A bad ts-canon.json fails the run with its message instead of a
   // stack, before any tool spawns: every rule below would otherwise
@@ -130,17 +152,16 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
 
   const steps: Step[] = [
     { name: "biome", run: () => runBiome(["check"], paths, root) },
-    {
-      name: "oxlint",
-      run: () => runOxlint(["--deny-warnings", ...paths], root),
-    },
-    ...ruleSteps(paths, root, config.rules),
-    {
-      name: "pandoc",
-      run: () =>
-        Promise.resolve(runPandoc(root, "check", config.pandoc.ignores)),
-    },
   ];
+  if (oxlintPaths.length > 0)
+    steps.push({
+      name: "oxlint",
+      run: () => runOxlint(["--deny-warnings", ...oxlintPaths], root),
+    });
+  steps.push(...ruleSteps(paths, root, config.rules), {
+    name: "pandoc",
+    run: () => Promise.resolve(runPandoc(root, "check", config.pandoc.ignores)),
+  });
   if (hasLockfile)
     steps.push({
       name: "peer-deps",
@@ -176,6 +197,7 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
     (id) => config.rules[id] === "off",
   ).map((id) => `ast-grep:${id} (off in ts-canon.json)`);
   if (!hasLockfile) skipped.push("peer-deps (no pnpm-lock.yaml)");
+  if (oxlintPaths.length === 0) skipped.push("oxlint (only markdown paths)");
   if (fast) skipped.push("audit (--fast)", "jscpd (--fast)");
   else if (!hasLockfile) skipped.push("audit (no pnpm-lock.yaml)");
   for (const reason of skipped) console.log(`> skipped ${reason}`);
@@ -183,4 +205,4 @@ const runLint = async (options: LintOptions = {}): Promise<number> => {
   return runSequence(steps);
 };
 
-export { LINT_RULES, resolvePaths, rootFor, runLint };
+export { LINT_RULES, resolvePaths, rootFor, runLint, withoutMarkdown };
