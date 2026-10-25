@@ -2,6 +2,32 @@
 
 Notable changes to ts-canon, newest first — one section per release.
 
+## 0.3.2
+
+A CLI crash fix; no breaking API or config-schema changes.
+
+### Fixed
+
+- `ts-canon lint <file>` and `ts-canon format <file>` no longer crash
+  with an uncaught `spawn ENOTDIR` when the path argument names an
+  existing file. `lint` now resolves a wildcard-free argument that
+  exists as a regular file to its parent directory before spawning —
+  directories, globs, and missing paths keep the old behavior — and
+  `format` stats the argument too, so a lone file keeps the
+  convert-to-arrow codemod’s passthrough instead of being rescoped.
+- A step whose working directory cannot be used now reports
+  `ts-canon: failed to run …` and exits 1 instead of crashing the CLI
+  with a raw stack: `spawn` throws synchronously when `chdir` into its
+  working directory fails, before any child process exists to emit an
+  `error` event.
+- Markdown file arguments no longer stop `format` or `lint` at the biome
+  and oxlint steps. Those tools exit 1 with “no files processed” on an
+  all-out-of-scope path list, so the steps now drop `.md` arguments and
+  skip themselves when nothing remains. Pandoc still owns markdown in
+  both commands.
+- Repaired formatting drift in `package.json` left by the v0.3.1 release
+  commit; `main`’s `pnpm lint` was red without it.
+
 ## 0.3.1
 
 A preset fix plus a bundled-toolchain refresh; no breaking API or
