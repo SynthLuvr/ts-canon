@@ -2,6 +2,31 @@
 
 Notable changes to ts-canon, newest first — one section per release.
 
+## 0.3.1
+
+A preset fix plus a bundled-toolchain refresh; no breaking API or
+config-schema changes.
+
+### Fixed
+
+- `presets/biome.preset.json` keeps markdown out of biome’s scope: the
+  formatter and the linter both now exclude `**/*.md`. Biome 2.6 brought
+  markdown formatting, and without the exclusion a biome upgrade would
+  restyle pandoc’s canonical GFM — fence spacing, emphasis markers,
+  table padding — and `lint` would fail on files `format` had just
+  “fixed”. Markdown stays pandoc’s alone.
+- `@biomejs/biome` is pinned to an exact version instead of a `^` range:
+  the caret floated fresh installs onto biome 2.6.x, whose markdown
+  formatter reintroduced the same fight inside the range’s window. An
+  exact pin hands upgrades back to you, one deliberate bump at a time.
+
+### Changed
+
+- Refreshed the bundled toolchain: `@biomejs/biome` 2.5.15 → 2.6.3,
+  `@ast-grep/cli` 0.50.0 → 0.51.0, `oxlint` 1.87.0 → 1.89.0,
+  `oxlint-tsgolint` → 7.0.2005, `jscpd` 5.4.1 → 5.4.2, `npm-run-all2`
+  9.0.3 → 9.0.4, and the pinned `packageManager` pnpm 12.11.2 → 12.15.0.
+
 ## 0.3.0
 
 New config option; no breaking API or default-behavior changes.
