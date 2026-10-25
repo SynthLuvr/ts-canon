@@ -156,7 +156,7 @@ Negation (`!`) is rejected rather than ignored, so a `!`-prefixed entry
 fails the run instead of quietly matching nothing.
 
 Markdown belongs to pandoc alone, and the shipped preset already
-enforces that: `presets/biome.preset.json` excludes `**/*.md` from
+enforces that: `presets/biome.preset.json` excludes `!**/*.md` from
 biome’s formatter and linter scope. Without the exclusion, a biome
 release with markdown formatting (2.6.0+) would restyle pandoc’s
 canonical GFM — fence spacing, emphasis markers, table padding — and
@@ -187,7 +187,7 @@ canonical GFM — fence spacing, emphasis markers, table padding — and
   dependency ranges would reintroduce the drift this package exists to
   kill. `@biomejs/biome` is pinned to an exact version — a `^` range
   floated fresh installs onto biome 2.6.x, whose new markdown formatter
-  fought the pandoc step (see the section above).
+  fought the pandoc step.
 
 Two deliberate exceptions stay on your side:
 

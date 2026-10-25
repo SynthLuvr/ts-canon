@@ -1,29 +1,25 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-
 import { vitestPreset } from "../../presets/vitest.mjs";
+import { packageRoot } from "../lib/runner.ts";
 
 /**
- * The shipped biome preset must never hand markdown to biome: the
- * pandoc step owns `*.md` (`runPandoc` formats and checks it
- * byte-for-byte). Biome 2.6 introduced a markdown formatter whose
- * canonical output differs from pandoc's GFM (fence spacing, emphasis
- * markers, table padding), so without these exclusions `lint` and
- * `format` fight over every markdown file — format "passes" and lint
- * goes red again immediately. The exclusion keeps the two formatters
- * out of each other's way for any biome version.
+ * Pandoc owns `*.md` — it formats and checks markdown byte-for-byte —
+ * so the preset must keep markdown out of biome's scope: biome 2.6's
+ * markdown formatter disagrees with pandoc's canonical GFM, and without
+ * the exclusions `lint` fails on files `format` just rewrote.
  */
 describe("presets/biome.preset.json", () => {
   const preset = JSON.parse(
-    readFileSync(
-      join(import.meta.dirname, "..", "..", "presets", "biome.preset.json"),
-      "utf8",
-    ),
+    readFileSync(join(packageRoot(), "presets", "biome.preset.json"), "utf8"),
   ) as {
     formatter?: { includes?: string[] };
     linter?: { includes?: string[] };
   };
+  const manifest = JSON.parse(
+    readFileSync(join(packageRoot(), "package.json"), "utf8"),
+  ) as { dependencies?: Record<string, string> };
 
   it("excludes markdown from the formatter scope", () => {
     expect(preset.formatter?.includes).toContain("!**/*.md");
@@ -34,20 +30,11 @@ describe("presets/biome.preset.json", () => {
   });
 
   /**
-   * Regression guard for the biome 2.6.3 incident: an unbounded `^`
-   * range floated fresh installs into a biome minor that changed
-   * canonical formatter output (markdown added, YAML restyled) and
-   * broke every consumer's lint. The package exists to kill tool
-   * drift, so the bundled biome moves only through a reviewed
-   * ts-canon release — the specifier must be exact.
+   * The bundled biome moves only through a reviewed ts-canon release: a
+   * `^` range once floated fresh installs onto 2.6.x, whose restyled
+   * output (markdown, YAML) broke consumers' lint.
    */
   it("pins biome to an exact version", () => {
-    const manifest = JSON.parse(
-      readFileSync(
-        join(import.meta.dirname, "..", "..", "package.json"),
-        "utf8",
-      ),
-    ) as { dependencies?: Record<string, string> };
     expect(manifest.dependencies?.["@biomejs/biome"]).toMatch(/^\d/);
   });
 });
