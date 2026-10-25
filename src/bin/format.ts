@@ -12,7 +12,7 @@ import {
   runSequence,
 } from "../lib/runner.ts";
 import { sourceGlob } from "../lib/source-glob.ts";
-import { LINT_RULES, resolvePaths, rootFor } from "./lint.ts";
+import { LINT_RULES, resolvePaths, rootFor, withoutMarkdown } from "./lint.ts";
 
 type FormatOptions = { paths?: string[] };
 
@@ -25,7 +25,9 @@ type FormatOptions = { paths?: string[] };
  */
 const arrowsArgs = (paths: string[], root: string): string[] | undefined => {
   if (paths.length !== 1 || paths[0].includes("*")) return paths;
-  const stats = statSync(root, { throwIfNoEntry: false });
+  // Stat the argument, not `root`: a file argument's root is already
+  // its parent (see rootFor), and only a directory argument is rescoped.
+  const stats = statSync(paths[0], { throwIfNoEntry: false });
   if (stats === undefined || !stats.isDirectory()) return paths;
   const glob = sourceGlob(root);
   return glob === undefined ? undefined : [glob];
@@ -71,27 +73,31 @@ const runFormat = async (options: FormatOptions = {}): Promise<number> => {
   if (!hasTsconfig)
     console.log("> skipped convert-to-arrow (no tsconfig.json)");
 
+  const biomePaths = withoutMarkdown(paths);
+  if (biomePaths.length === 0)
+    console.log("> skipped biome format, biome check (only markdown paths)");
+
   const steps: Step[] = [];
   if (hasTsconfig) steps.push(convertToArrowStep(paths, root));
-  steps.push(
-    {
-      name: "strip-braces",
-      run: () => runAstGrep("strip-braces", paths, root, ["-U"]),
-    },
-    {
-      name: "biome format",
-      run: () => runBiome(["format", "--write"], paths, root),
-    },
-    {
-      name: "biome check",
-      run: () => runBiome(["check", "--write"], paths, root),
-    },
-    {
-      name: "pandoc",
-      run: () =>
-        Promise.resolve(runPandoc(root, "write", config.pandoc.ignores)),
-    },
-  );
+  steps.push({
+    name: "strip-braces",
+    run: () => runAstGrep("strip-braces", paths, root, ["-U"]),
+  });
+  if (biomePaths.length > 0)
+    steps.push(
+      {
+        name: "biome format",
+        run: () => runBiome(["format", "--write"], biomePaths, root),
+      },
+      {
+        name: "biome check",
+        run: () => runBiome(["check", "--write"], biomePaths, root),
+      },
+    );
+  steps.push({
+    name: "pandoc",
+    run: () => Promise.resolve(runPandoc(root, "write", config.pandoc.ignores)),
+  });
 
   return runSequence(steps);
 };

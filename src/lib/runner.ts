@@ -1,3 +1,4 @@
+import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import {
   closeSync,
@@ -91,11 +92,40 @@ const entryKind = (file: string): EntryKind => {
   return "direct";
 };
 
+/** Reports a tool that could not be spawned, as the CLI's own message. */
+const reportFailure = (file: string, error: unknown): void => {
+  console.error(
+    `ts-canon: failed to run ${file}: ${
+      error instanceof Error ? error.message : String(error)
+    }`,
+  );
+};
+
 /**
  * Spawns a resolved tool by absolute path — under the current node when it
- * is a JS entry point, directly when it is a native executable — and
- * resolves to the child's exit code. Mirrors the spawn discipline of the
- * ported `peer-deps`/`oxlint` scripts: no shell, no PATH lookup, no shims.
+ * is a JS entry point, directly when it is a native executable —
+ * mirroring the spawn discipline of the ported `peer-deps`/`oxlint`
+ * scripts: no shell, no PATH lookup, no shims.
+ */
+const spawnTool = (
+  file: string,
+  args: string[],
+  cwd: string | undefined,
+): ChildProcess => {
+  const underNode = entryKind(file) === "node";
+  return spawn(
+    underNode ? process.execPath : file,
+    underNode ? [file, ...args] : args,
+    { stdio: "inherit", cwd },
+  );
+};
+
+/**
+ * Runs a spawned tool to completion and resolves to its exit code. Any
+ * spawn failure — including the synchronous throw of an unusable cwd or
+ * an unloadable entry, which happens before a child exists and so can
+ * never reach its "error" event — is reported as the CLI's own message
+ * and resolved as 1 instead of crashing with a raw stack.
  */
 const runCommand = (
   file: string,
@@ -103,17 +133,17 @@ const runCommand = (
   options: { cwd?: string } = {},
 ): Promise<number> =>
   new Promise((resolve) => {
-    const kind = entryKind(file);
-    const child = spawn(
-      kind === "node" ? process.execPath : file,
-      kind === "node" ? [file, ...args] : args,
-      { stdio: "inherit", cwd: options.cwd },
-    );
-    child.on("error", (error) => {
-      console.error(`ts-canon: failed to run ${file}: ${error.message}`);
+    const fail = (error: unknown): void => {
+      reportFailure(file, error);
       resolve(1);
-    });
-    child.on("close", (code) => resolve(code ?? 1));
+    };
+    try {
+      const child = spawnTool(file, args, options.cwd);
+      child.on("error", fail);
+      child.on("close", (code) => resolve(code ?? 1));
+    } catch (error) {
+      fail(error);
+    }
   });
 
 /**
