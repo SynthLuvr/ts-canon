@@ -1,6 +1,16 @@
 allowBuilds:
   "@ast-grep/cli": true
   esbuild: true
+minimumReleaseAgeExclude:
+  - jscpd-darwin-arm64@5.4.3
+  - jscpd-darwin-x64@5.4.3
+  - jscpd-linux-arm64-gnu@5.4.3
+  - jscpd-linux-arm64-musl@5.4.3
+  - jscpd-linux-x64-gnu@5.4.3
+  - jscpd-linux-x64-musl@5.4.3
+  - jscpd-windows-arm64-msvc@5.4.3
+  - jscpd-windows-x64-msvc@5.4.3
+  - jscpd@5.4.3
 overrides:
   minimatch: ">=11.0.1"
 scriptShell: bash
