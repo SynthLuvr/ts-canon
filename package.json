@@ -27,7 +27,7 @@
   "type": "module",
   "license": "MIT",
   "private": false,
-  "packageManager": "pnpm@12.18.0",
+  "packageManager": "pnpm@12.21.0",
   "engines": {
     "node": ">=24"
   },
@@ -53,13 +53,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ast-grep/cli": "^0.51.1",
-    "@biomejs/biome": "2.6.6",
+    "@ast-grep/cli": "^0.51.2",
+    "@biomejs/biome": "2.6.8",
     "convert-to-arrow": "^1.2.0",
     "jscpd": "^5.4.3",
     "npm-run-all2": "^9.0.4",
-    "oxlint": "^1.92.0",
-    "oxlint-tsgolint": "^7.0.2006"
+    "oxlint": "^1.93.0",
+    "oxlint-tsgolint": "^7.0.2007"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
