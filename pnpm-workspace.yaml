@@ -11,6 +11,17 @@ minimumReleaseAgeExclude:
   - jscpd-windows-arm64-msvc@5.4.3
   - jscpd-windows-x64-msvc@5.4.3
   - jscpd@5.4.3
+  - "@biomejs/biome@2.6.8"
+  - "@biomejs/cli-android-arm64@2.6.8"
+  - "@biomejs/cli-android-x64@2.6.8"
+  - "@biomejs/cli-darwin-arm64@2.6.8"
+  - "@biomejs/cli-darwin-x64@2.6.8"
+  - "@biomejs/cli-linux-arm64-musl@2.6.8"
+  - "@biomejs/cli-linux-arm64@2.6.8"
+  - "@biomejs/cli-linux-x64-musl@2.6.8"
+  - "@biomejs/cli-linux-x64@2.6.8"
+  - "@biomejs/cli-win32-arm64@2.6.8"
+  - "@biomejs/cli-win32-x64@2.6.8"
 overrides:
   minimatch: ">=11.0.1"
 scriptShell: bash
